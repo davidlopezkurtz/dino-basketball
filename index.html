@@ -44,7 +44,7 @@
 <body>
   <canvas id="game" aria-label="Dino Basketball game"></canvas>
 
-  <script src="assets/manifest.js"></script>
+  <script src="assets/manifest.js?v=20260529-stage2-fac0344"></script>
   <script>
     (() => {
       "use strict";
@@ -134,6 +134,7 @@
         { id: "space", unlockAt: CONFIG.COURT_INTERVAL * 3, title: "Space", tint: "rgba(30, 41, 59, 0.2)" }
       ];
       const ASSET_DEFS = (window.DINO_ASSETS && window.DINO_ASSETS.images) || {};
+      const ASSET_VERSION = (window.DINO_ASSETS && window.DINO_ASSETS.version) || "local";
       const assets = {
         ready: false,
         loaded: 0,
@@ -269,6 +270,15 @@
 
       function loadSave() {
         try {
+          const params = new URLSearchParams(window.location.search);
+          if (params.has("reset")) {
+            localStorage.removeItem(SAVE_KEY);
+            params.delete("reset");
+            const query = params.toString();
+            const cleanUrl = window.location.pathname + (query ? `?${query}` : "") + window.location.hash;
+            window.history.replaceState(null, "", cleanUrl);
+            return defaultSave();
+          }
           const raw = localStorage.getItem(SAVE_KEY);
           return normalizeSave(raw ? JSON.parse(raw) : null);
         } catch (error) {
@@ -291,6 +301,11 @@
         }
       }
 
+      function versionedAssetSrc(src) {
+        const separator = src.includes("?") ? "&" : "?";
+        return `${src}${separator}v=${encodeURIComponent(ASSET_VERSION)}`;
+      }
+
       function loadAssets() {
         const entries = Object.entries(ASSET_DEFS);
         if (!entries.length) {
@@ -310,7 +325,7 @@
             assets.failed += 1;
             resolve();
           };
-          image.src = def.src;
+          image.src = versionedAssetSrc(def.src);
         }))).then(() => {
           assets.ready = true;
         });

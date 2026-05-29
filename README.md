@@ -29,6 +29,10 @@ The game still keeps procedural drawing fallbacks for the background, dino, hoop
 
 Publish the repository root from the `main` branch. The game uses a single `index.html` file plus `.nojekyll`, so there are no root-absolute asset paths to break on a project Pages URL.
 
+## Testing a fresh save
+
+The game intentionally saves progress in `localStorage` on the same URL. To test a fresh game after an update, open the Pages URL with `?reset=1` once.
+
 ## Stage 2 playtest gate
 
 Before Stage 3 polish, test this on the target phone. Score should persist across reloads, unlocks should feel delightful, the picker should be easy to exit, and the court/dino controls should not get in the way of tap-to-shoot play.

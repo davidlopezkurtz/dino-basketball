@@ -1,5 +1,5 @@
 window.DINO_ASSETS = {
-  version: "2026-05-29-starter",
+  version: "2026-05-29-stage2-fac0344",
   images: {
     "background.landscape": {
       src: "assets/images/backgrounds/court-landscape.webp",

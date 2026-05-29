@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Dino Basketball</title>
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top);
+      --safe-right: env(safe-area-inset-right);
+      --safe-bottom: env(safe-area-inset-bottom);
+      --safe-left: env(safe-area-inset-left);
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: #8bd7ff;
+      position: fixed;
+      inset: 0;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Dino Basketball game"></canvas>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const CONFIG = {
+        GRAVITY: 1850,
+        SHOT_POWER: 1,
+        AIM_ASSIST: 0.96,
+        MISS_WOBBLE: 18,
+        SCORE_SENSOR_SCALE: 2.25,
+        BALL_MAGNETISM: 0.18,
+        SHAKE_MS: 190,
+        SHAKE_INTENSITY: 7,
+        PARTICLE_COUNT: 42,
+        UNLOCK_THRESHOLDS: [5, 15, 30],
+        COURT_INTERVAL: 12,
+        MAKE_RATE: 0.9
+      };
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d", { alpha: false });
+      const STATE = { START: "start", PLAY: "play" };
+      const TAU = Math.PI * 2;
+      const COLORS = ["#fff275", "#ff7a90", "#6ee7b7", "#60a5fa", "#f97316", "#f0abfc"];
+
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let lastTime = performance.now();
+      let audioContext = null;
+      let noiseBuffer = null;
+      let lastTapAt = 0;
+
+      const game = {
+        state: STATE.START,
+        score: 0,
+        streak: 0,
+        time: 0,
+        shakeLeft: 0,
+        dinoReact: 0,
+        dinoMood: "happy",
+        queuedShot: false,
+        autoLaunchDelay: 0,
+        particles: [],
+        particlePool: [],
+        ball: {
+          state: "ready",
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          r: 16,
+          age: 0,
+          flightTime: 1,
+          intent: "make",
+          scored: false,
+          afterScore: 0,
+          squeeze: 0
+        }
+      };
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function getViewportSize() {
+        const viewport = window.visualViewport;
+        return {
+          w: Math.max(1, Math.round(viewport ? viewport.width : window.innerWidth)),
+          h: Math.max(1, Math.round(viewport ? viewport.height : window.innerHeight))
+        };
+      }
+
+      function readSafeInset(name) {
+        const raw = getComputedStyle(document.documentElement).getPropertyValue(name);
+        const value = parseFloat(raw);
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      function safeInsets() {
+        return {
+          top: readSafeInset("--safe-top"),
+          right: readSafeInset("--safe-right"),
+          bottom: readSafeInset("--safe-bottom"),
+          left: readSafeInset("--safe-left")
+        };
+      }
+
+      function resizeCanvas() {
+        const size = getViewportSize();
+        width = size.w;
+        height = size.h;
+        dpr = clamp(window.devicePixelRatio || 1, 1, 3);
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        resetReadyBall();
+      }
+
+      function getLayout() {
+        const safe = safeInsets();
+        const minSide = Math.min(width, height);
+        const bottomPad = clamp(height * 0.11, 48, 96) + safe.bottom * 0.35;
+        const groundY = height - bottomPad;
+        const dinoSize = clamp(minSide * 0.19, 62, 96);
+        const dinoX = width < height ? width * 0.24 : width * 0.18;
+        const hoopX = width < height ? width * 0.76 : width * 0.72;
+        const hoopY = clamp(height * 0.29, 108 + safe.top * 0.25, groundY - dinoSize * 1.8);
+        const rimR = clamp(minSide * 0.055, 21, 34);
+        const ballR = clamp(minSide * 0.035, 13, 21);
+        return {
+          safe,
+          minSide,
+          groundY,
+          dino: { x: dinoX, y: groundY, size: dinoSize },
+          hand: { x: dinoX + dinoSize * 0.38, y: groundY - dinoSize * 0.57 },
+          hoop: {
+            x: hoopX,
+            y: hoopY,
+            rimR,
+            sensorR: rimR * CONFIG.SCORE_SENSOR_SCALE,
+            poleX: hoopX + rimR * 1.6
+          },
+          ballR
+        };
+      }
+
+      function resetReadyBall() {
+        if (!width || !height || game.ball.state !== "ready") return;
+        const layout = getLayout();
+        game.ball.x = layout.hand.x;
+        game.ball.y = layout.hand.y;
+        game.ball.r = layout.ballR;
+        game.ball.vx = 0;
+        game.ball.vy = 0;
+        game.ball.age = 0;
+        game.ball.scored = false;
+        game.ball.afterScore = 0;
+        game.ball.squeeze = 0;
+      }
+
+      function ensureAudio() {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) return null;
+        if (!audioContext) {
+          audioContext = new AudioCtor();
+        }
+        if (audioContext.state !== "running") {
+          audioContext.resume().catch(() => {});
+        }
+        return audioContext;
+      }
+
+      function makeNoiseBuffer(ctxRef) {
+        if (noiseBuffer) return noiseBuffer;
+        const length = Math.floor(ctxRef.sampleRate * 0.28);
+        const buffer = ctxRef.createBuffer(1, length, ctxRef.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i += 1) {
+          const fade = 1 - i / length;
+          data[i] = (Math.random() * 2 - 1) * fade;
+        }
+        noiseBuffer = buffer;
+        return buffer;
+      }
+
+      function playTone({ type = "sine", start = 440, end = 440, duration = 0.12, gain = 0.08 }) {
+        const ctxRef = ensureAudio();
+        if (!ctxRef) return;
+        const now = ctxRef.currentTime;
+        const osc = ctxRef.createOscillator();
+        const amp = ctxRef.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(start * rand(0.96, 1.04), now);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(40, end * rand(0.96, 1.04)), now + duration);
+        amp.gain.setValueAtTime(0.0001, now);
+        amp.gain.exponentialRampToValueAtTime(gain, now + 0.012);
+        amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(amp).connect(ctxRef.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+      }
+
+      function playTap() {
+        playTone({ type: "triangle", start: 260, end: 410, duration: 0.08, gain: 0.045 });
+      }
+
+      function playMiss() {
+        playTone({ type: "sine", start: 240, end: 150, duration: 0.18, gain: 0.035 });
+      }
+
+      function playSwish() {
+        const ctxRef = ensureAudio();
+        if (!ctxRef) return;
+        const now = ctxRef.currentTime;
+        const source = ctxRef.createBufferSource();
+        const filter = ctxRef.createBiquadFilter();
+        const amp = ctxRef.createGain();
+        source.buffer = makeNoiseBuffer(ctxRef);
+        filter.type = "bandpass";
+        filter.frequency.setValueAtTime(900, now);
+        filter.frequency.exponentialRampToValueAtTime(2400, now + 0.18);
+        filter.Q.setValueAtTime(1.2, now);
+        amp.gain.setValueAtTime(0.0001, now);
+        amp.gain.exponentialRampToValueAtTime(0.06, now + 0.025);
+        amp.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+        source.connect(filter).connect(amp).connect(ctxRef.destination);
+        source.start(now);
+        source.stop(now + 0.24);
+        playTone({ type: "sine", start: 660, end: 920, duration: 0.12, gain: 0.025 });
+      }
+
+      function launchShot() {
+        const ball = game.ball;
+        if (ball.state !== "ready") {
+          game.queuedShot = true;
+          return;
+        }
+
+        const layout = getLayout();
+        const hoop = layout.hoop;
+        const startX = layout.hand.x;
+        const startY = layout.hand.y;
+        const willMake = Math.random() < CONFIG.MAKE_RATE;
+        const assistedScatter = CONFIG.MISS_WOBBLE * (1 - CONFIG.AIM_ASSIST + 0.18);
+        let targetX = hoop.x + rand(-assistedScatter, assistedScatter);
+        let targetY = hoop.y + rand(-assistedScatter * 0.55, assistedScatter * 0.55);
+
+        if (!willMake) {
+          const missSide = Math.random() < 0.5 ? -1 : 1;
+          targetX = hoop.x + missSide * hoop.sensorR * rand(1.15, 1.45);
+          targetY = hoop.y + rand(-hoop.rimR * 0.9, hoop.rimR * 0.65);
+        }
+
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+        const distance = Math.hypot(dx, dy);
+        const flightTime = clamp(distance / (520 * CONFIG.SHOT_POWER), 0.78, 1.08);
+
+        ball.state = "flying";
+        ball.x = startX;
+        ball.y = startY;
+        ball.r = layout.ballR;
+        ball.vx = dx / flightTime;
+        ball.vy = (dy - 0.5 * CONFIG.GRAVITY * flightTime * flightTime) / flightTime;
+        ball.age = 0;
+        ball.flightTime = flightTime;
+        ball.intent = willMake ? "make" : "miss";
+        ball.scored = false;
+        ball.afterScore = 0;
+        ball.squeeze = 1;
+
+        game.dinoReact = 0.18;
+        game.dinoMood = "launch";
+        playTap();
+      }
+
+      function scoreBasket(forceCenter) {
+        const ball = game.ball;
+        if (ball.scored) return;
+        const layout = getLayout();
+        if (forceCenter) {
+          ball.x = layout.hoop.x;
+          ball.y = layout.hoop.y + layout.hoop.rimR * 0.12;
+        }
+        ball.scored = true;
+        ball.intent = "scored";
+        ball.afterScore = 0;
+        ball.vx = rand(-35, 35);
+        ball.vy = 420;
+        ball.squeeze = 1;
+        game.score += 1;
+        game.streak += 1;
+        game.shakeLeft = CONFIG.SHAKE_MS / 1000;
+        game.dinoReact = 0.58;
+        game.dinoMood = "happy";
+        spawnParticles(layout.hoop.x, layout.hoop.y, CONFIG.PARTICLE_COUNT + Math.min(game.streak, 6) * 3);
+        playSwish();
+      }
+
+      function finishMiss() {
+        const ball = game.ball;
+        if (ball.state === "ready") return;
+        ball.state = "ready";
+        ball.scored = false;
+        ball.squeeze = 1;
+        game.streak = 0;
+        game.dinoReact = 0.34;
+        game.dinoMood = "shrug";
+        playMiss();
+        resetReadyBall();
+        if (game.queuedShot) {
+          game.queuedShot = false;
+          game.autoLaunchDelay = 0.08;
+        }
+      }
+
+      function finishMake() {
+        const ball = game.ball;
+        ball.state = "ready";
+        resetReadyBall();
+        if (game.queuedShot) {
+          game.queuedShot = false;
+          game.autoLaunchDelay = 0.08;
+        }
+      }
+
+      function spawnParticles(x, y, count) {
+        for (let i = 0; i < count; i += 1) {
+          const p = game.particlePool.pop() || {};
+          const angle = rand(-Math.PI, 0);
+          const speed = rand(120, 430);
+          p.x = x;
+          p.y = y;
+          p.vx = Math.cos(angle) * speed + rand(-60, 60);
+          p.vy = Math.sin(angle) * speed - rand(20, 140);
+          p.life = rand(0.55, 1.05);
+          p.maxLife = p.life;
+          p.size = rand(4, 9);
+          p.spin = rand(-7, 7);
+          p.rot = rand(0, TAU);
+          p.color = COLORS[(Math.random() * COLORS.length) | 0];
+          p.star = Math.random() < 0.35;
+          game.particles.push(p);
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = game.particles.length - 1; i >= 0; i -= 1) {
+          const p = game.particles[i];
+          p.life -= dt;
+          if (p.life <= 0) {
+            game.particles.splice(i, 1);
+            game.particlePool.push(p);
+            continue;
+          }
+          p.vy += CONFIG.GRAVITY * 0.38 * dt;
+          p.vx *= 0.992;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.rot += p.spin * dt;
+        }
+      }
+
+      function updateBall(dt) {
+        const ball = game.ball;
+        const layout = getLayout();
+        if (ball.state === "ready") {
+          ball.r = layout.ballR;
+          ball.x = layout.hand.x;
+          ball.y = layout.hand.y + Math.sin(game.time * 4.5) * 2;
+          ball.squeeze = Math.max(0, ball.squeeze - dt * 8);
+          return;
+        }
+
+        ball.age += dt;
+        ball.squeeze = Math.max(0, ball.squeeze - dt * 7);
+
+        if (!ball.scored) {
+          const hoop = layout.hoop;
+          const dx = hoop.x - ball.x;
+          const dy = hoop.y - ball.y;
+          const dist = Math.hypot(dx, dy);
+          if (ball.intent === "make" && ball.age > ball.flightTime * 0.42 && dist < hoop.sensorR * 3.2) {
+            const pull = CONFIG.BALL_MAGNETISM * dt * 16;
+            ball.vx += dx * pull;
+            ball.vy += dy * pull;
+          }
+        }
+
+        ball.vy += CONFIG.GRAVITY * dt;
+        ball.x += ball.vx * dt;
+        ball.y += ball.vy * dt;
+
+        const hoop = layout.hoop;
+        const sensorDist = Math.hypot(ball.x - hoop.x, ball.y - hoop.y);
+        if (!ball.scored && (sensorDist <= hoop.sensorR || (ball.intent === "make" && ball.age >= ball.flightTime * 0.98))) {
+          scoreBasket(ball.intent === "make");
+        }
+
+        if (ball.scored) {
+          ball.afterScore += dt;
+          if (ball.y > layout.groundY - ball.r) {
+            ball.y = layout.groundY - ball.r;
+            ball.vy = -Math.abs(ball.vy) * 0.32;
+            ball.vx *= 0.7;
+            ball.squeeze = 1;
+          }
+          if (ball.afterScore > 0.62) finishMake();
+          return;
+        }
+
+        if (ball.y > layout.groundY - ball.r || ball.x < -ball.r * 3 || ball.x > width + ball.r * 3) {
+          finishMiss();
+        }
+      }
+
+      function update(dt) {
+        game.time += dt;
+        game.shakeLeft = Math.max(0, game.shakeLeft - dt);
+        game.dinoReact = Math.max(0, game.dinoReact - dt);
+        updateParticles(dt);
+
+        if (game.state === STATE.PLAY) {
+          if (game.autoLaunchDelay > 0) {
+            game.autoLaunchDelay -= dt;
+            if (game.autoLaunchDelay <= 0) launchShot();
+          }
+          updateBall(dt);
+        }
+      }
+
+      function roundedRect(x, y, w, h, r) {
+        const radius = Math.min(r, w * 0.5, h * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + w, y, x + w, y + h, radius);
+        ctx.arcTo(x + w, y + h, x, y + h, radius);
+        ctx.arcTo(x, y + h, x, y, radius);
+        ctx.arcTo(x, y, x + w, y, radius);
+        ctx.closePath();
+      }
+
+      function fillRoundedRect(x, y, w, h, r, color) {
+        ctx.fillStyle = color;
+        roundedRect(x, y, w, h, r);
+        ctx.fill();
+      }
+
+      function drawBackground(layout) {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#7dd3fc");
+        sky.addColorStop(0.6, "#b9f3ff");
+        sky.addColorStop(1, "#d9f99d");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = "#ffe66d";
+        ctx.beginPath();
+        ctx.arc(width * 0.16, height * 0.14, clamp(layout.minSide * 0.09, 34, 64), 0, TAU);
+        ctx.fill();
+
+        drawCloud(width * 0.64, height * 0.15, layout.minSide * 0.08, 0.72);
+        drawCloud(width * 0.28, height * 0.25, layout.minSide * 0.07, 0.5);
+
+        const groundY = layout.groundY;
+        ctx.fillStyle = "#55c95a";
+        ctx.fillRect(0, groundY, width, height - groundY);
+        ctx.fillStyle = "#6bd16f";
+        for (let x = -20; x < width + 20; x += 38) {
+          ctx.beginPath();
+          ctx.ellipse(x, groundY + 12, 34, 8, 0, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.65)";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(width * 0.52, groundY + layout.minSide * 0.15, layout.minSide * 0.28, Math.PI, TAU);
+        ctx.stroke();
+      }
+
+      function drawCloud(x, y, size, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(x - size * 0.7, y + size * 0.12, size * 0.48, 0, TAU);
+        ctx.arc(x - size * 0.2, y - size * 0.05, size * 0.62, 0, TAU);
+        ctx.arc(x + size * 0.45, y + size * 0.08, size * 0.5, 0, TAU);
+        ctx.rect(x - size * 0.8, y, size * 1.55, size * 0.45);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawHoop(layout) {
+        const hoop = layout.hoop;
+        const poleTop = hoop.y - hoop.rimR * 1.4;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#5b6b7a";
+        ctx.lineWidth = Math.max(5, hoop.rimR * 0.22);
+        ctx.beginPath();
+        ctx.moveTo(hoop.poleX, poleTop);
+        ctx.lineTo(hoop.poleX, layout.groundY + 6);
+        ctx.stroke();
+
+        fillRoundedRect(hoop.x + hoop.rimR * 0.62, hoop.y - hoop.rimR * 1.42, hoop.rimR * 1.8, hoop.rimR * 1.35, 8, "#f8fafc");
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 3;
+        roundedRect(hoop.x + hoop.rimR * 0.62, hoop.y - hoop.rimR * 1.42, hoop.rimR * 1.8, hoop.rimR * 1.35, 8);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#f97316";
+        ctx.lineWidth = Math.max(5, hoop.rimR * 0.18);
+        ctx.beginPath();
+        ctx.ellipse(hoop.x, hoop.y, hoop.rimR, hoop.rimR * 0.32, 0, 0, TAU);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+        ctx.lineWidth = 2;
+        for (let i = -2; i <= 2; i += 1) {
+          const startX = hoop.x + i * hoop.rimR * 0.33;
+          ctx.beginPath();
+          ctx.moveTo(startX, hoop.y + hoop.rimR * 0.16);
+          ctx.lineTo(hoop.x + i * hoop.rimR * 0.18, hoop.y + hoop.rimR * 1.15);
+          ctx.stroke();
+        }
+      }
+
+      function drawDino(x, groundY, size, mood) {
+        const react = game.dinoReact;
+        const happyHop = mood === "happy" ? Math.sin((react / 0.58) * Math.PI) * -size * 0.16 : 0;
+        const launchLean = mood === "launch" ? react / 0.18 : 0;
+        const shrug = mood === "shrug" ? react / 0.34 : 0;
+        const squash = mood === "happy" ? Math.sin((react / 0.58) * Math.PI) * 0.07 : 0;
+
+        ctx.save();
+        ctx.translate(x, groundY + happyHop);
+        ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
+        ctx.scale(1 + squash, 1 - squash);
+
+        ctx.fillStyle = "#1fbf75";
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.48, -size * 0.38);
+        ctx.lineTo(-size * 0.88, -size * 0.55);
+        ctx.lineTo(-size * 0.46, -size * 0.18);
+        ctx.closePath();
+        ctx.fill();
+
+        fillRoundedRect(-size * 0.48, -size * 0.62, size * 0.82, size * 0.44, size * 0.18, "#1fbf75");
+        fillRoundedRect(size * 0.12, -size * 0.93, size * 0.46, size * 0.34, size * 0.14, "#22c55e");
+        fillRoundedRect(size * 0.43, -size * 0.86, size * 0.28, size * 0.18, size * 0.08, "#22c55e");
+
+        ctx.fillStyle = "#d9f99d";
+        ctx.beginPath();
+        ctx.ellipse(-size * 0.08, -size * 0.43, size * 0.26, size * 0.13, 0, 0, TAU);
+        ctx.fill();
+
+        fillRoundedRect(-size * 0.34, -size * 0.21, size * 0.17, size * 0.22, size * 0.07, "#15803d");
+        fillRoundedRect(size * 0.04, -size * 0.21, size * 0.17, size * 0.22, size * 0.07, "#15803d");
+        fillRoundedRect(-size * 0.39, -size * 0.03, size * 0.24, size * 0.07, size * 0.04, "#14532d");
+        fillRoundedRect(size * 0.01, -size * 0.03, size * 0.24, size * 0.07, size * 0.04, "#14532d");
+
+        ctx.strokeStyle = "#15803d";
+        ctx.lineWidth = Math.max(4, size * 0.055);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(size * 0.23, -size * 0.51);
+        ctx.lineTo(size * (0.43 + shrug * 0.06), -size * (0.43 + shrug * 0.1));
+        ctx.stroke();
+
+        ctx.fillStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.arc(size * 0.47, -size * 0.81, size * 0.035, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = Math.max(2, size * 0.025);
+        ctx.beginPath();
+        ctx.arc(size * 0.57, -size * 0.76, size * 0.07, 0.15, Math.PI * 0.78);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawBall(ball, idleScale) {
+        let stretch = clamp(Math.hypot(ball.vx, ball.vy) / 1700, 0, 0.16);
+        let apexPuff = 0;
+        if (ball.state === "flying" && !ball.scored) {
+          apexPuff = clamp(1 - Math.abs(ball.vy) / 280, 0, 1) * 0.08;
+        }
+        const squeeze = ball.squeeze * 0.16;
+        const sx = idleScale * (1 + stretch + squeeze - apexPuff * 0.25);
+        const sy = idleScale * (1 - stretch * 0.55 - squeeze + apexPuff);
+
+        ctx.save();
+        ctx.translate(ball.x, ball.y);
+        ctx.scale(sx, sy);
+        ctx.fillStyle = "#f97316";
+        ctx.beginPath();
+        ctx.arc(0, 0, ball.r, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = "#7c2d12";
+        ctx.lineWidth = Math.max(2, ball.r * 0.12);
+        ctx.beginPath();
+        ctx.arc(0, 0, ball.r * 0.98, 0, TAU);
+        ctx.moveTo(-ball.r, 0);
+        ctx.lineTo(ball.r, 0);
+        ctx.moveTo(0, -ball.r);
+        ctx.lineTo(0, ball.r);
+        ctx.moveTo(-ball.r * 0.72, -ball.r * 0.72);
+        ctx.quadraticCurveTo(0, 0, -ball.r * 0.72, ball.r * 0.72);
+        ctx.moveTo(ball.r * 0.72, -ball.r * 0.72);
+        ctx.quadraticCurveTo(0, 0, ball.r * 0.72, ball.r * 0.72);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        for (const p of game.particles) {
+          const alpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          ctx.fillStyle = p.color;
+          if (p.star) {
+            drawStar(0, 0, p.size * 0.65, p.size * 1.2);
+          } else {
+            fillRoundedRect(-p.size * 0.5, -p.size * 0.25, p.size, p.size * 0.5, 2, p.color);
+          }
+          ctx.restore();
+        }
+      }
+
+      function drawStar(x, y, inner, outer) {
+        ctx.beginPath();
+        for (let i = 0; i < 10; i += 1) {
+          const radius = i % 2 === 0 ? outer : inner;
+          const angle = -Math.PI / 2 + i * Math.PI / 5;
+          const px = x + Math.cos(angle) * radius;
+          const py = y + Math.sin(angle) * radius;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawScore(layout) {
+        const x = layout.safe.left + 16;
+        const y = layout.safe.top + 14;
+        const h = clamp(layout.minSide * 0.115, 46, 58);
+        const w = Math.max(104, h * 1.9);
+        fillRoundedRect(x, y, w, h, 18, "rgba(255, 255, 255, 0.78)");
+        const iconBall = { x: x + h * 0.48, y: y + h * 0.5, r: h * 0.25, vx: 0, vy: 0, state: "ready", squeeze: 0 };
+        drawBall(iconBall, 1);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = `800 ${Math.floor(h * 0.58)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(game.score), x + h * 0.92, y + h * 0.52);
+      }
+
+      function drawStart(layout) {
+        drawBackground(layout);
+        drawHoop(layout);
+        const titleY = layout.safe.top + clamp(height * 0.12, 70, 120);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = `900 ${clamp(layout.minSide * 0.105, 34, 56)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Dino Basketball", width * 0.5, titleY);
+
+        const pulse = 1 + Math.sin(game.time * 3.2) * 0.035;
+        drawDino(width * 0.48, layout.groundY, clamp(layout.minSide * 0.28, 96, 140) * pulse, "happy");
+        const floatingBall = {
+          x: width * 0.68,
+          y: layout.groundY - clamp(layout.minSide * 0.48, 150, 220) + Math.sin(game.time * 4) * 8,
+          r: clamp(layout.minSide * 0.055, 19, 30),
+          vx: 80,
+          vy: Math.sin(game.time) * 60,
+          state: "flying",
+          squeeze: 0
+        };
+        drawBall(floatingBall, 1);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = `800 ${clamp(layout.minSide * 0.07, 24, 36)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.fillText("Tap to play", width * 0.5, height - clamp(height * 0.16, 78, 130));
+      }
+
+      function drawPlay(layout) {
+        drawBackground(layout);
+        drawHoop(layout);
+        drawDino(layout.dino.x, layout.dino.y, layout.dino.size, game.dinoMood);
+        drawBall(game.ball, 1);
+        drawParticles();
+        drawScore(layout);
+      }
+
+      function draw() {
+        const layout = getLayout();
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+
+        if (game.shakeLeft > 0) {
+          const t = game.shakeLeft / (CONFIG.SHAKE_MS / 1000);
+          const amount = CONFIG.SHAKE_INTENSITY * t * t;
+          ctx.translate(rand(-amount, amount), rand(-amount, amount));
+        }
+
+        if (game.state === STATE.START) drawStart(layout);
+        else drawPlay(layout);
+
+        ctx.restore();
+      }
+
+      function handleTap(event) {
+        if (event) event.preventDefault();
+        const now = performance.now();
+        if (now - lastTapAt < 90) return;
+        lastTapAt = now;
+
+        ensureAudio();
+        if (game.state === STATE.START) {
+          game.state = STATE.PLAY;
+          game.dinoReact = 0.4;
+          game.dinoMood = "happy";
+          playTap();
+          resetReadyBall();
+          return;
+        }
+        launchShot();
+      }
+
+      function preventGesture(event) {
+        event.preventDefault();
+      }
+
+      canvas.addEventListener("touchend", handleTap, { passive: false });
+      canvas.addEventListener("pointerup", (event) => {
+        if (event.pointerType !== "touch") handleTap(event);
+      }, { passive: false });
+      canvas.addEventListener("touchstart", preventGesture, { passive: false });
+      canvas.addEventListener("touchmove", preventGesture, { passive: false });
+      canvas.addEventListener("contextmenu", preventGesture);
+      document.addEventListener("gesturestart", preventGesture, { passive: false });
+      document.addEventListener("gesturechange", preventGesture, { passive: false });
+      document.addEventListener("gestureend", preventGesture, { passive: false });
+      document.addEventListener("touchmove", preventGesture, { passive: false });
+
+      let lastTouchEnd = 0;
+      document.addEventListener("touchend", (event) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) event.preventDefault();
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      function loop(now) {
+        const dt = clamp((now - lastTime) / 1000, 0, 0.033);
+        lastTime = now;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("orientationchange", resizeCanvas);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", resizeCanvas);
+      }
+
+      resizeCanvas();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

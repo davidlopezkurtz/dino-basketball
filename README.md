@@ -12,6 +12,10 @@ This repository currently contains the Stage 2 progression build:
 - Four unlockable cosmetic dinos with a hatch celebration
 - Four courts that unlock through play, with a tap-only court cycler
 - Tap-only dino picker with locked dinos shown as eggs
+- Automatic special shots including rainbow, moon, bank, dunk, star, and bubble variants
+- Court-specific celebration particles for jungle, beach, volcano, and space
+- Session-only surprise moments such as crown, parade, hoop sparkles, and confetti rain
+- A tap-only sticker book derived from current score and unlocks, with no new save fields
 - Static GitHub Pages friendly files with no runtime network calls
 - Local image asset repository with manifest-driven Canvas rendering and procedural fallbacks
 

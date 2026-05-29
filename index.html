@@ -44,7 +44,7 @@
 <body>
   <canvas id="game" aria-label="Dino Basketball game"></canvas>
 
-  <script src="assets/manifest.js?v=20260529-stage2-fac0344"></script>
+  <script src="assets/manifest.js?v=20260529-dino-court-assets"></script>
   <script>
     (() => {
       "use strict";
@@ -63,14 +63,19 @@
         COURT_INTERVAL: 12,
         MAKE_RATE: 0.9,
         HATCH_SECONDS: 3.3,
-        COURT_FLASH_SECONDS: 1.4
+        COURT_FLASH_SECONDS: 1.4,
+        SPECIAL_SHOT_INTERVAL: 4,
+        SURPRISE_MIN_BASKETS: 5,
+        SURPRISE_MAX_BASKETS: 8
       };
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d", { alpha: false });
-      const STATE = { START: "start", PLAY: "play", HATCH: "hatch", PICKER: "picker" };
+      const STATE = { START: "start", PLAY: "play", HATCH: "hatch", PICKER: "picker", STICKERS: "stickers" };
       const TAU = Math.PI * 2;
       const COLORS = ["#fff275", "#ff7a90", "#6ee7b7", "#60a5fa", "#f97316", "#f0abfc"];
+      const SPECIAL_SHOTS = ["rainbow", "bank", "moon", "dunk", "star", "bubble"];
+      const SURPRISE_TYPES = ["crown", "parade", "sparkleHoop", "confettiRain", "starBall"];
       const SAVE_KEY = "dinoBasketballSave";
       const SAVE_VERSION = 1;
       const DINOS = [
@@ -168,6 +173,12 @@
         pendingHatchDino: null,
         hatch: null,
         courtFlash: 0,
+        shotCount: 0,
+        nextShotKind: null,
+        nextSurpriseAt: loadedSave.score + randomInt(CONFIG.SURPRISE_MIN_BASKETS, CONFIG.SURPRISE_MAX_BASKETS),
+        surprise: null,
+        dinoCelebration: null,
+        hoopSparkle: 0,
         pickerBounce: 0,
         uiTargets: [],
         pickerTargets: [],
@@ -185,7 +196,9 @@
           intent: "make",
           scored: false,
           afterScore: 0,
-          squeeze: 0
+          squeeze: 0,
+          shotKind: "normal",
+          trail: []
         }
       };
 
@@ -195,6 +208,14 @@
 
       function rand(min, max) {
         return min + Math.random() * (max - min);
+      }
+
+      function randomInt(min, max) {
+        return Math.floor(rand(min, max + 1));
+      }
+
+      function pick(list) {
+        return list[Math.floor(Math.random() * list.length)];
       }
 
       function defaultSave() {
@@ -337,6 +358,19 @@
         return asset && asset.loaded ? asset : null;
       }
 
+      function getPoseForMood(mood, happyActive) {
+        if (mood === "launch") return "launch";
+        if (mood === "shrug") return "shrug";
+        if (happyActive) return "happy";
+        return "idle";
+      }
+
+      function getDinoSpriteChoice(dino, pose) {
+        const specificId = `dino.${dino.id}.${pose}`;
+        if (getAsset(specificId)) return { id: specificId, specific: true };
+        return { id: `dino.${pose}`, specific: false };
+      }
+
       function drawSprite(assetId, x, y, logicalWidth, options = {}) {
         const asset = getAsset(assetId);
         if (!asset || logicalWidth <= 0) return false;
@@ -454,6 +488,8 @@
         game.ball.scored = false;
         game.ball.afterScore = 0;
         game.ball.squeeze = 0;
+        game.ball.shotKind = "normal";
+        game.ball.trail.length = 0;
       }
 
       function ensureAudio() {
@@ -542,6 +578,33 @@
         window.setTimeout(() => playDinoCheer(dino), 520);
       }
 
+      function getCourtJuice(courtId = game.court) {
+        if (courtId === "beach") {
+          return { palette: ["#38bdf8", "#fef3c7", "#fb7185", "#facc15"], shape: "shell" };
+        }
+        if (courtId === "volcano") {
+          return { palette: ["#fb923c", "#f97316", "#fef08a", "#ef4444"], shape: "spark" };
+        }
+        if (courtId === "space") {
+          return { palette: ["#c4b5fd", "#93c5fd", "#fef08a", "#f0abfc"], shape: "planet" };
+        }
+        return { palette: ["#86efac", "#fef08a", "#22c55e", "#38bdf8"], shape: "leaf" };
+      }
+
+      function chooseShotKind() {
+        if (game.nextShotKind) {
+          const forced = game.nextShotKind;
+          game.nextShotKind = null;
+          return forced;
+        }
+
+        if (game.shotCount > 0 && game.shotCount % CONFIG.SPECIAL_SHOT_INTERVAL === 0) {
+          return SPECIAL_SHOTS[(Math.floor(game.shotCount / CONFIG.SPECIAL_SHOT_INTERVAL) - 1) % SPECIAL_SHOTS.length];
+        }
+
+        return "normal";
+      }
+
       function launchShot() {
         const ball = game.ball;
         if (ball.state !== "ready") {
@@ -553,6 +616,8 @@
         const hoop = layout.hoop;
         const startX = layout.hand.x;
         const startY = layout.hand.y;
+        game.shotCount += 1;
+        const shotKind = chooseShotKind();
         const willMake = Math.random() < CONFIG.MAKE_RATE;
         const assistedScatter = CONFIG.MISS_WOBBLE * (1 - CONFIG.AIM_ASSIST + 0.18);
         let targetX = hoop.x + rand(-assistedScatter, assistedScatter);
@@ -567,7 +632,9 @@
         const dx = targetX - startX;
         const dy = targetY - startY;
         const distance = Math.hypot(dx, dy);
-        const flightTime = clamp(distance / (520 * CONFIG.SHOT_POWER), 0.78, 1.08);
+        let flightTime = clamp(distance / (520 * CONFIG.SHOT_POWER), 0.78, 1.08);
+        if (shotKind === "moon") flightTime *= 1.16;
+        if (shotKind === "dunk") flightTime *= 0.82;
 
         ball.state = "flying";
         ball.x = startX;
@@ -581,6 +648,8 @@
         ball.scored = false;
         ball.afterScore = 0;
         ball.squeeze = 1;
+        ball.shotKind = shotKind;
+        ball.trail.length = 0;
 
         game.dinoReact = 0.18;
         game.dinoMood = "launch";
@@ -610,7 +679,8 @@
         if (courtsNow.length > courtsBefore.length) {
           game.court = courtsNow[courtsNow.length - 1];
           game.courtFlash = CONFIG.COURT_FLASH_SECONDS;
-          spawnParticles(width * 0.5, height * 0.34, Math.floor(CONFIG.PARTICLE_COUNT * 0.8), ["#fef08a", "#38bdf8", "#fb7185", "#a78bfa"]);
+          const juice = getCourtJuice(game.court);
+          spawnParticles(width * 0.5, height * 0.34, Math.floor(CONFIG.PARTICLE_COUNT * 0.8), juice.palette, juice.shape);
         }
 
         saveGame();
@@ -622,14 +692,15 @@
         game.hatch = {
           time: 0,
           duration: CONFIG.HATCH_SECONDS,
-          dinoId
+          dinoId,
+          taps: 0
         };
         game.queuedShot = false;
         game.autoLaunchDelay = 0;
         game.ball.state = "ready";
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
-        spawnParticles(width * 0.5, height * 0.42, CONFIG.PARTICLE_COUNT + 18, dino.particles);
+        spawnParticles(width * 0.5, height * 0.42, CONFIG.PARTICLE_COUNT + 18, dino.particles, "star");
         playFanfare(dino);
       }
 
@@ -647,8 +718,53 @@
         const currentIndex = Math.max(0, unlocked.indexOf(game.court));
         game.court = unlocked[(currentIndex + 1) % unlocked.length];
         game.courtFlash = CONFIG.COURT_FLASH_SECONDS * 0.8;
-        spawnParticles(width * 0.5, height * 0.32, Math.floor(CONFIG.PARTICLE_COUNT * 0.55));
+        const juice = getCourtJuice(game.court);
+        spawnParticles(width * 0.5, height * 0.32, Math.floor(CONFIG.PARTICLE_COUNT * 0.55), juice.palette, juice.shape);
         saveGame();
+      }
+
+      function startSurprise(type = pick(SURPRISE_TYPES)) {
+        game.surprise = {
+          type,
+          time: 0,
+          duration: type === "parade" ? 3.8 : 2.8
+        };
+        if (type === "starBall") game.nextShotKind = "star";
+        if (type === "sparkleHoop") game.hoopSparkle = 2.8;
+      }
+
+      function maybeStartSurprise(layout) {
+        if (game.score < game.nextSurpriseAt) return;
+        const type = pick(SURPRISE_TYPES);
+        game.nextSurpriseAt = game.score + randomInt(CONFIG.SURPRISE_MIN_BASKETS, CONFIG.SURPRISE_MAX_BASKETS);
+        startSurprise(type);
+        const juice = getCourtJuice();
+        spawnParticles(width * 0.5, height * 0.22, CONFIG.PARTICLE_COUNT, juice.palette, juice.shape);
+        if (type === "confettiRain") {
+          for (let i = 0; i < 18; i += 1) {
+            spawnParticles(rand(width * 0.12, width * 0.88), rand(20, height * 0.22), 2, juice.palette, juice.shape);
+          }
+        }
+        if (type === "parade") {
+          spawnParticles(layout.dino.x, layout.dino.y - layout.dino.size * 0.8, CONFIG.PARTICLE_COUNT, juice.palette, juice.shape);
+        }
+      }
+
+      function triggerDinoPersonality(dino, layout) {
+        game.dinoCelebration = {
+          type: dino.id,
+          time: 0,
+          duration: 1.1
+        };
+        if (dino.id === "trex") {
+          spawnParticles(layout.dino.x, layout.dino.y - 8, 18, ["#fde68a", "#d9f99d", "#f97316"], "stomp");
+        } else if (dino.id === "trike") {
+          spawnParticles(layout.dino.x + layout.dino.size * 0.45, layout.dino.y - layout.dino.size * 0.85, 22, dino.particles, "spark");
+        } else if (dino.id === "stego") {
+          spawnParticles(layout.dino.x - layout.dino.size * 0.35, layout.dino.y - layout.dino.size * 0.48, 24, dino.particles, "star");
+        } else if (dino.id === "ptero") {
+          spawnParticles(layout.dino.x, layout.dino.y - layout.dino.size * 1.05, 28, dino.particles, "planet");
+        }
       }
 
       function scoreBasket(forceCenter) {
@@ -671,9 +787,16 @@
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
         const dino = getCurrentDino();
-        spawnParticles(layout.hoop.x, layout.hoop.y, CONFIG.PARTICLE_COUNT + Math.min(game.streak, 6) * 3, dino.particles);
+        const courtJuice = getCourtJuice();
+        const shotBonus = ball.shotKind === "normal" ? 0 : 16;
+        spawnParticles(layout.hoop.x, layout.hoop.y, CONFIG.PARTICLE_COUNT + Math.min(game.streak, 6) * 3 + shotBonus, courtJuice.palette, courtJuice.shape);
+        spawnParticles(layout.hoop.x, layout.hoop.y, 14, dino.particles, ball.shotKind === "bank" ? "spark" : "star");
+        if (ball.shotKind === "bank") game.hoopSparkle = 1.2;
+        if (ball.shotKind === "dunk") game.shakeLeft = Math.max(game.shakeLeft, 0.28);
         playSwish();
         playDinoCheer(dino);
+        triggerDinoPersonality(dino, layout);
+        maybeStartSurprise(layout);
         handleProgressionAfterScore();
       }
 
@@ -710,7 +833,7 @@
         }
       }
 
-      function spawnParticles(x, y, count, palette = null) {
+      function spawnParticles(x, y, count, palette = null, shape = null) {
         const colors = palette && palette.length ? palette : COLORS;
         for (let i = 0; i < count; i += 1) {
           const p = game.particlePool.pop() || {};
@@ -726,7 +849,7 @@
           p.spin = rand(-7, 7);
           p.rot = rand(0, TAU);
           p.color = colors[(Math.random() * colors.length) | 0];
-          p.star = Math.random() < 0.35;
+          p.shape = shape || (Math.random() < 0.35 ? "star" : "confetti");
           game.particles.push(p);
         }
       }
@@ -775,8 +898,13 @@
         }
 
         ball.vy += CONFIG.GRAVITY * dt;
+        if (ball.shotKind !== "normal") {
+          ball.trail.push({ x: ball.x, y: ball.y, age: 0, kind: ball.shotKind });
+          if (ball.trail.length > 28) ball.trail.shift();
+        }
         ball.x += ball.vx * dt;
         ball.y += ball.vy * dt;
+        for (const point of ball.trail) point.age += dt;
 
         const hoop = layout.hoop;
         const sensorDist = Math.hypot(ball.x - hoop.x, ball.y - hoop.y);
@@ -806,7 +934,20 @@
         game.shakeLeft = Math.max(0, game.shakeLeft - dt);
         game.dinoReact = Math.max(0, game.dinoReact - dt);
         game.courtFlash = Math.max(0, game.courtFlash - dt);
+        game.hoopSparkle = Math.max(0, game.hoopSparkle - dt);
         game.pickerBounce = Math.max(0, game.pickerBounce - dt);
+        if (game.dinoCelebration) {
+          game.dinoCelebration.time += dt;
+          if (game.dinoCelebration.time >= game.dinoCelebration.duration) game.dinoCelebration = null;
+        }
+        if (game.surprise) {
+          game.surprise.time += dt;
+          if (game.surprise.type === "confettiRain" && Math.random() < dt * 7) {
+            const juice = getCourtJuice();
+            spawnParticles(rand(width * 0.1, width * 0.9), rand(16, height * 0.18), 3, juice.palette, juice.shape);
+          }
+          if (game.surprise.time >= game.surprise.duration) game.surprise = null;
+        }
         updateParticles(dt);
 
         if (game.state === STATE.PLAY) {
@@ -930,29 +1071,6 @@
             }
             ctx.stroke();
           }
-        } else if (court.id === "volcano") {
-          ctx.fillStyle = "rgba(127, 29, 29, 0.36)";
-          ctx.beginPath();
-          ctx.moveTo(width * 0.05, layout.groundY);
-          ctx.lineTo(width * 0.28, layout.groundY - layout.minSide * 0.36);
-          ctx.lineTo(width * 0.5, layout.groundY);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = "#fb923c";
-          ctx.beginPath();
-          ctx.moveTo(width * 0.25, layout.groundY - layout.minSide * 0.28);
-          ctx.lineTo(width * 0.31, layout.groundY - layout.minSide * 0.28);
-          ctx.lineTo(width * 0.29, layout.groundY - layout.minSide * 0.12);
-          ctx.closePath();
-          ctx.fill();
-          ctx.fillStyle = "rgba(251, 146, 60, 0.85)";
-          for (let i = 0; i < 10; i += 1) {
-            const x = (i * 97 + game.time * 22) % width;
-            const y = layout.groundY - ((i * 41 + game.time * 34) % Math.max(80, layout.groundY * 0.5));
-            ctx.beginPath();
-            ctx.arc(x, y, 2 + (i % 3), 0, TAU);
-            ctx.fill();
-          }
         } else if (court.id === "jungle") {
           ctx.fillStyle = "rgba(21, 128, 61, 0.24)";
           for (let i = 0; i < 8; i += 1) {
@@ -972,9 +1090,12 @@
           return;
         }
 
-        const assetId = width >= height ? "background.landscape" : "background.portrait";
+        const orientation = width >= height ? "landscape" : "portrait";
+        const courtAssetId = `background.${court.id}.${orientation}`;
+        const hasCourtAsset = Boolean(ASSET_DEFS[courtAssetId]);
+        const assetId = hasCourtAsset ? courtAssetId : `background.${orientation}`;
         if (!drawCoverImage(assetId)) drawProceduralBackground(layout);
-        drawCourtOverlay(court, layout);
+        if (!hasCourtAsset) drawCourtOverlay(court, layout);
       }
 
       function drawCloud(x, y, size, alpha) {
@@ -1195,6 +1316,22 @@
         ctx.restore();
       }
 
+      function getDinoSpriteId(dino, mood, happyActive) {
+        let pose = "idle";
+        if (mood === "launch") pose = "launch";
+        else if (mood === "shrug") pose = "shrug";
+        else if (happyActive) pose = "happy";
+
+        const specific = `dino.${dino.id}.${pose}`;
+        if (ASSET_DEFS[specific]) return specific;
+        const idle = `dino.${dino.id}.idle`;
+        if (ASSET_DEFS[idle]) return idle;
+        if (pose === "happy" && ASSET_DEFS["dino.happy"]) return "dino.happy";
+        if (pose === "launch" && ASSET_DEFS["dino.launch"]) return "dino.launch";
+        if (pose === "shrug" && ASSET_DEFS["dino.shrug"]) return "dino.shrug";
+        return "dino.idle";
+      }
+
       function drawDinoForDino(dino, x, groundY, size, mood) {
         const react = game.dinoReact;
         const happyActive = mood === "happy" && (react > 0.01 || game.state === STATE.START);
@@ -1202,23 +1339,19 @@
         const launchLean = mood === "launch" ? react / 0.18 : 0;
         const shrug = mood === "shrug" ? react / 0.34 : 0;
         const squash = happyActive ? Math.sin((react / 0.58) * Math.PI) * 0.07 : 0;
-        let spriteId = "dino.idle";
-
-        if (mood === "launch") spriteId = "dino.launch";
-        else if (mood === "shrug") spriteId = "dino.shrug";
-        else if (happyActive) spriteId = "dino.happy";
-
+        const spriteId = getDinoSpriteId(dino, mood, happyActive);
+        const specificSprite = spriteId.startsWith(`dino.${dino.id}.`);
         const asset = ASSET_DEFS[spriteId];
         const widthScale = asset ? asset.logicalWidthScale : 1.5;
         ctx.save();
         ctx.translate(x, groundY + happyHop);
         ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
         ctx.scale(1 + squash, 1 - squash);
-        drawDinoAccessory(dino, size, "behind");
-        ctx.filter = `hue-rotate(${dino.hue || 0}deg) saturate(${dino.saturation || 1})`;
+        if (!specificSprite) drawDinoAccessory(dino, size, "behind");
+        ctx.filter = specificSprite ? "none" : `hue-rotate(${dino.hue || 0}deg) saturate(${dino.saturation || 1})`;
         const drewSprite = drawSprite(spriteId, 0, 0, size * widthScale);
         ctx.filter = "none";
-        if (drewSprite) drawDinoAccessory(dino, size, "front");
+        if (drewSprite && !specificSprite) drawDinoAccessory(dino, size, "front");
         ctx.restore();
 
         if (!drewSprite) drawProceduralDino(x, groundY, size, mood, dino);
@@ -1226,6 +1359,37 @@
 
       function drawDino(x, groundY, size, mood) {
         drawDinoForDino(getCurrentDino(), x, groundY, size, mood);
+      }
+
+      function drawShotTrail(ball) {
+        if (!ball.trail || ball.trail.length < 2 || ball.shotKind === "normal") return;
+        ctx.save();
+        ctx.lineCap = "round";
+        for (let i = 0; i < ball.trail.length - 1; i += 1) {
+          const point = ball.trail[i];
+          const next = ball.trail[i + 1];
+          const t = i / Math.max(1, ball.trail.length - 1);
+          ctx.globalAlpha = t * 0.58;
+          ctx.lineWidth = ball.r * (0.25 + t * 0.35);
+          if (ball.shotKind === "rainbow") {
+            ctx.strokeStyle = `hsl(${Math.floor(t * 280 + game.time * 80) % 360}, 95%, 62%)`;
+          } else if (ball.shotKind === "moon") {
+            ctx.strokeStyle = "#fde68a";
+          } else if (ball.shotKind === "bank") {
+            ctx.strokeStyle = "#93c5fd";
+          } else if (ball.shotKind === "bubble") {
+            ctx.strokeStyle = "#67e8f9";
+          } else if (ball.shotKind === "star") {
+            ctx.strokeStyle = "#fef08a";
+          } else {
+            ctx.strokeStyle = "#fb923c";
+          }
+          ctx.beginPath();
+          ctx.moveTo(point.x, point.y);
+          ctx.lineTo(next.x, next.y);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       function drawBall(ball, idleScale) {
@@ -1240,6 +1404,24 @@
         const ballAsset = ASSET_DEFS["prop.basketball"];
         const widthScale = ballAsset ? ballAsset.logicalWidthScale : 2.28;
         const rotation = ball.state === "flying" ? ball.age * 7 + ball.x * 0.01 : game.time * 0.08;
+
+        if (ball.shotKind === "bubble") {
+          ctx.save();
+          ctx.globalAlpha = 0.42;
+          ctx.strokeStyle = "#67e8f9";
+          ctx.lineWidth = Math.max(3, ball.r * 0.22);
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, ball.r * 1.45, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        } else if (ball.shotKind === "star") {
+          ctx.save();
+          ctx.translate(ball.x, ball.y);
+          ctx.rotate(game.time * 4);
+          ctx.fillStyle = "rgba(254, 240, 138, 0.62)";
+          drawStar(0, 0, ball.r * 0.8, ball.r * 1.65);
+          ctx.restore();
+        }
 
         if (drawSprite("prop.basketball", ball.x, ball.y, ball.r * widthScale, {
           scaleX: sx,
@@ -1278,13 +1460,70 @@
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot);
           ctx.fillStyle = p.color;
-          if (p.star) {
-            drawStar(0, 0, p.size * 0.65, p.size * 1.2);
-          } else {
-            fillRoundedRect(-p.size * 0.5, -p.size * 0.25, p.size, p.size * 0.5, 2, p.color);
-          }
+          drawParticleShape(p.shape, p.size, p.color);
           ctx.restore();
         }
+      }
+
+      function drawParticleShape(shape, size, color) {
+        if (shape === "star") {
+          drawStar(0, 0, size * 0.65, size * 1.2);
+          return;
+        }
+        if (shape === "leaf") {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, size * 0.9, size * 0.38, 0.35, 0, TAU);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(15, 23, 42, 0.12)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.55, 0);
+          ctx.lineTo(size * 0.55, 0);
+          ctx.stroke();
+          return;
+        }
+        if (shape === "shell") {
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.78, Math.PI, TAU);
+          ctx.lineTo(size * 0.78, size * 0.38);
+          ctx.lineTo(-size * 0.78, size * 0.38);
+          ctx.closePath();
+          ctx.fill();
+          return;
+        }
+        if (shape === "spark") {
+          ctx.beginPath();
+          ctx.moveTo(0, -size * 1.1);
+          ctx.lineTo(size * 0.32, -size * 0.22);
+          ctx.lineTo(size * 1.05, 0);
+          ctx.lineTo(size * 0.25, size * 0.25);
+          ctx.lineTo(0, size * 1.05);
+          ctx.lineTo(-size * 0.25, size * 0.25);
+          ctx.lineTo(-size * 1.05, 0);
+          ctx.lineTo(-size * 0.32, -size * 0.22);
+          ctx.closePath();
+          ctx.fill();
+          return;
+        }
+        if (shape === "planet") {
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.72, 0, TAU);
+          ctx.fill();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(1, size * 0.22);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, size * 1.25, size * 0.42, -0.35, 0, TAU);
+          ctx.stroke();
+          return;
+        }
+        if (shape === "stomp") {
+          ctx.globalAlpha *= 0.65;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, size * 1.25, size * 0.38, 0, 0, TAU);
+          ctx.fill();
+          return;
+        }
+        fillRoundedRect(-size * 0.5, -size * 0.25, size, size * 0.5, 2, color);
       }
 
       function drawStar(x, y, inner, outer) {
@@ -1345,7 +1584,8 @@
         const size = clamp(layout.minSide * 0.13, 52, 68);
         const y = height - layout.safe.bottom - size * 0.68;
         const controls = [
-          { type: "picker", x: layout.safe.left + size * 0.74, y, r: size * 0.52, size }
+          { type: "picker", x: layout.safe.left + size * 0.74, y, r: size * 0.52, size },
+          { type: "stickers", x: layout.safe.left + size * 1.95, y, r: size * 0.52, size }
         ];
         if (unlockedCourtsForScore(game.score).length > 1) {
           controls.push({ type: "court", x: width - layout.safe.right - size * 0.74, y, r: size * 0.52, size });
@@ -1407,6 +1647,15 @@
 
           if (target.type === "picker") {
             drawDinoForDino(getCurrentDino(), target.x, target.y + target.size * 0.32, target.size * 0.35, "happy");
+          } else if (target.type === "stickers") {
+            ctx.save();
+            ctx.translate(target.x, target.y);
+            ctx.fillStyle = "#fef08a";
+            drawStar(0, 0, target.size * 0.16, target.size * 0.36);
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
           } else {
             drawCourtIcon(target.x, target.y, target.size * 0.8);
           }
@@ -1509,22 +1758,107 @@
         ctx.fillText("Tap to play", width * 0.5, height - clamp(height * 0.16, 78, 130));
       }
 
+      function drawHoopSparkles(layout) {
+        if (game.hoopSparkle <= 0) return;
+        const hoop = layout.hoop;
+        const count = 8;
+        ctx.save();
+        ctx.globalAlpha = clamp(game.hoopSparkle / 1.2, 0, 1);
+        ctx.fillStyle = "#fef08a";
+        for (let i = 0; i < count; i += 1) {
+          const angle = game.time * 4 + i * TAU / count;
+          const r = hoop.rimR * (1.2 + (i % 2) * 0.28);
+          ctx.save();
+          ctx.translate(hoop.x + Math.cos(angle) * r, hoop.y + Math.sin(angle) * r * 0.45);
+          ctx.rotate(angle);
+          drawStar(0, 0, 3, 7);
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      function drawCrown(x, y, size) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = "#facc15";
+        ctx.strokeStyle = "#b45309";
+        ctx.lineWidth = Math.max(2, size * 0.06);
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.5, size * 0.25);
+        ctx.lineTo(-size * 0.42, -size * 0.35);
+        ctx.lineTo(-size * 0.15, size * 0.02);
+        ctx.lineTo(0, -size * 0.45);
+        ctx.lineTo(size * 0.15, size * 0.02);
+        ctx.lineTo(size * 0.42, -size * 0.35);
+        ctx.lineTo(size * 0.5, size * 0.25);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawSurprise(layout) {
+        const surprise = game.surprise;
+        const celebration = game.dinoCelebration;
+        if (surprise && surprise.type === "crown") {
+          const bob = Math.sin(game.time * 8) * 4;
+          drawCrown(layout.dino.x + layout.dino.size * 0.12, layout.dino.y - layout.dino.size * 1.2 + bob, layout.dino.size * 0.42);
+        }
+
+        if (surprise && surprise.type === "parade") {
+          const progress = surprise.time / surprise.duration;
+          const baseY = layout.groundY + layout.minSide * 0.06;
+          for (let i = 0; i < 6; i += 1) {
+            const x = ((progress * width * 1.4) + i * layout.minSide * 0.18) % (width + 80) - 40;
+            const y = baseY + Math.sin(game.time * 5 + i) * 5;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.fillStyle = COLORS[i % COLORS.length];
+            drawStar(0, 0, 5, 12);
+            ctx.restore();
+          }
+        }
+
+        if (celebration && celebration.type === "trex") {
+          ctx.save();
+          ctx.globalAlpha = 0.35 * (1 - celebration.time / celebration.duration);
+          ctx.fillStyle = "#92400e";
+          ctx.beginPath();
+          ctx.ellipse(layout.dino.x - layout.dino.size * 0.12, layout.dino.y + 4, layout.dino.size * 0.62, layout.dino.size * 0.1, 0, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        } else if (celebration && celebration.type === "ptero") {
+          ctx.save();
+          ctx.globalAlpha = 0.55 * (1 - celebration.time / celebration.duration);
+          ctx.strokeStyle = "#a78bfa";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(layout.dino.x, layout.dino.y - layout.dino.size * 0.7, layout.dino.size * (0.55 + celebration.time), 0, TAU);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
       function drawPlay(layout) {
         drawBackground(layout);
         drawHoopBack(layout);
         drawDino(layout.dino.x, layout.dino.y, layout.dino.size, game.dinoMood);
+        drawShotTrail(game.ball);
         drawBall(game.ball, 1);
         drawHoopFront(layout);
+        drawHoopSparkles(layout);
         drawParticles();
         drawScore(layout);
         drawCourtBanner(layout);
         drawPlayControls(layout);
+        drawSurprise(layout);
       }
 
       function drawHatch(layout) {
         const hatch = game.hatch || { time: 0, duration: CONFIG.HATCH_SECONDS, dinoId: game.selectedDino };
         const dino = getDinoById(hatch.dinoId);
-        const progress = clamp(hatch.time / hatch.duration, 0, 1);
+        const tapProgress = clamp((hatch.taps || 0) / 3, 0, 1);
+        const progress = Math.max(clamp(hatch.time / hatch.duration, 0, 1), tapProgress * 0.86);
         const crack = clamp((progress - 0.12) / 0.46, 0, 1);
         const reveal = clamp((progress - 0.36) / 0.34, 0, 1);
         const eggSize = clamp(layout.minSide * 0.34, 116, 176);
@@ -1548,7 +1882,7 @@
         ctx.font = `900 ${clamp(layout.minSide * 0.095, 32, 54)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("New dino!", width * 0.5, layout.safe.top + clamp(height * 0.15, 84, 130));
+        ctx.fillText(reveal > 0.7 ? "New dino!" : "Tap egg!", width * 0.5, layout.safe.top + clamp(height * 0.15, 84, 130));
       }
 
       function drawPicker(layout) {
@@ -1594,6 +1928,84 @@
         }
       }
 
+      function drawStickerBook(layout) {
+        drawBackground(layout);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
+        ctx.fillRect(0, 0, width, height);
+
+        const back = getBackButton(layout);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.beginPath();
+        ctx.arc(back.x, back.y, back.r, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = Math.max(4, back.size * 0.075);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(back.x + back.size * 0.13, back.y - back.size * 0.18);
+        ctx.lineTo(back.x - back.size * 0.13, back.y);
+        ctx.lineTo(back.x + back.size * 0.13, back.y + back.size * 0.18);
+        ctx.stroke();
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = `900 ${clamp(layout.minSide * 0.085, 28, 44)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Stickers", width * 0.5, layout.safe.top + clamp(layout.minSide * 0.15, 58, 84));
+
+        const tile = clamp(layout.minSide * 0.19, 72, 108);
+        const gap = clamp(layout.minSide * 0.035, 12, 18);
+        const columns = 4;
+        const gridW = columns * tile + (columns - 1) * gap;
+        const startX = width * 0.5 - gridW * 0.5 + tile * 0.5;
+        const startY = height * 0.34;
+        const earnedCourts = unlockedCourtsForScore(game.score);
+
+        DINOS.forEach((dino, index) => {
+          const x = startX + index * (tile + gap);
+          const y = startY;
+          const earned = game.unlockedDinos.includes(dino.id);
+          drawStickerTile(x, y, tile, earned);
+          if (earned) drawDinoForDino(dino, x, y + tile * 0.34, tile * 0.36, "happy");
+          else drawEgg(x, y + tile * 0.04, tile * 0.45, dino, 0);
+        });
+
+        COURTS.forEach((court, index) => {
+          const x = startX + index * (tile + gap);
+          const y = startY + tile + gap;
+          const earned = earnedCourts.includes(court.id);
+          drawStickerTile(x, y, tile, earned);
+          ctx.save();
+          ctx.globalAlpha = earned ? 1 : 0.32;
+          const oldCourt = game.court;
+          game.court = court.id;
+          drawCourtIcon(x, y, tile * 0.78);
+          game.court = oldCourt;
+          ctx.restore();
+        });
+      }
+
+      function drawStickerTile(x, y, size, earned) {
+        const left = x - size * 0.5;
+        const top = y - size * 0.5;
+        fillRoundedRect(left, top, size, size, 16, earned ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.55)");
+        ctx.strokeStyle = earned ? "#facc15" : "rgba(15, 23, 42, 0.18)";
+        ctx.lineWidth = earned ? 4 : 3;
+        roundedRect(left, top, size, size, 16);
+        ctx.stroke();
+        if (!earned) {
+          ctx.save();
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = "#0f172a";
+          drawStar(x, y, size * 0.16, size * 0.34);
+          ctx.restore();
+        }
+      }
+
       function draw() {
         const layout = getLayout();
         ctx.save();
@@ -1609,6 +2021,7 @@
         if (game.state === STATE.START) drawStart(layout);
         else if (game.state === STATE.HATCH) drawHatch(layout);
         else if (game.state === STATE.PICKER) drawPicker(layout);
+        else if (game.state === STATE.STICKERS) drawStickerBook(layout);
         else drawPlay(layout);
 
         ctx.restore();
@@ -1641,6 +2054,14 @@
 
           if (target.type === "picker") {
             game.state = STATE.PICKER;
+            game.queuedShot = false;
+            game.autoLaunchDelay = 0;
+            playTap();
+            return true;
+          }
+
+          if (target.type === "stickers") {
+            game.state = STATE.STICKERS;
             game.queuedShot = false;
             game.autoLaunchDelay = 0;
             playTap();
@@ -1685,6 +2106,30 @@
         }
       }
 
+      function handleBackOnlyTap(point) {
+        const layout = getLayout();
+        const back = getBackButton(layout);
+        if (hitCircle(point, back, 10)) {
+          game.state = STATE.PLAY;
+          playTap();
+          resetReadyBall();
+        }
+      }
+
+      function handleHatchTap(point) {
+        if (!game.hatch) return;
+        game.hatch.taps += 1;
+        const dino = getDinoById(game.hatch.dinoId);
+        const layout = getLayout();
+        const crackProgress = clamp(game.hatch.taps / 3, 0, 1);
+        spawnParticles(width * 0.5, height * 0.5, 12 + game.hatch.taps * 4, dino.particles, "star");
+        game.hatch.time = Math.max(game.hatch.time, game.hatch.duration * (0.18 + crackProgress * 0.58));
+        playTap();
+        if (game.hatch.taps >= 3 && game.hatch.time > game.hatch.duration * 0.72) {
+          spawnParticles(layout.dino.x, height * 0.45, CONFIG.PARTICLE_COUNT, dino.particles, "star");
+        }
+      }
+
       function handleTap(event) {
         if (event) event.preventDefault();
         const point = getTapPoint(event);
@@ -1703,12 +2148,18 @@
         }
 
         if (game.state === STATE.HATCH) {
-          if (game.hatch && game.hatch.time > 1.1) endHatch();
+          handleHatchTap(point);
+          if (game.hatch && game.hatch.taps >= 3 && game.hatch.time > game.hatch.duration * 0.82) endHatch();
           return;
         }
 
         if (game.state === STATE.PICKER) {
           handlePickerTap(point);
+          return;
+        }
+
+        if (game.state === STATE.STICKERS) {
+          handleBackOnlyTap(point);
           return;
         }
 

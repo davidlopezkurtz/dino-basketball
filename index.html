@@ -44,6 +44,7 @@
 <body>
   <canvas id="game" aria-label="Dino Basketball game"></canvas>
 
+  <script src="assets/manifest.js"></script>
   <script>
     (() => {
       "use strict";
@@ -68,6 +69,14 @@
       const STATE = { START: "start", PLAY: "play" };
       const TAU = Math.PI * 2;
       const COLORS = ["#fff275", "#ff7a90", "#6ee7b7", "#60a5fa", "#f97316", "#f0abfc"];
+      const ASSET_DEFS = (window.DINO_ASSETS && window.DINO_ASSETS.images) || {};
+      const assets = {
+        ready: false,
+        loaded: 0,
+        failed: 0,
+        total: Object.keys(ASSET_DEFS).length,
+        images: {}
+      };
 
       let width = 0;
       let height = 0;
@@ -111,6 +120,78 @@
 
       function rand(min, max) {
         return min + Math.random() * (max - min);
+      }
+
+      function loadAssets() {
+        const entries = Object.entries(ASSET_DEFS);
+        if (!entries.length) {
+          assets.ready = true;
+          return Promise.resolve();
+        }
+
+        return Promise.all(entries.map(([id, def]) => new Promise((resolve) => {
+          const image = new Image();
+          image.decoding = "async";
+          image.onload = () => {
+            assets.images[id] = { ...def, image, loaded: true };
+            assets.loaded += 1;
+            resolve();
+          };
+          image.onerror = () => {
+            assets.failed += 1;
+            resolve();
+          };
+          image.src = def.src;
+        }))).then(() => {
+          assets.ready = true;
+        });
+      }
+
+      function getAsset(id) {
+        if (!assets.ready) return null;
+        const asset = assets.images[id];
+        return asset && asset.loaded ? asset : null;
+      }
+
+      function drawSprite(assetId, x, y, logicalWidth, options = {}) {
+        const asset = getAsset(assetId);
+        if (!asset || logicalWidth <= 0) return false;
+
+        const anchorX = options.anchorX ?? asset.anchorX ?? 0.5;
+        const anchorY = options.anchorY ?? asset.anchorY ?? 0.5;
+        const logicalHeight = options.logicalHeight ?? logicalWidth * (asset.height / asset.width);
+        const alpha = options.alpha ?? 1;
+        const scaleX = options.scaleX ?? 1;
+        const scaleY = options.scaleY ?? 1;
+        const rotation = options.rotation ?? 0;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+        ctx.globalAlpha *= alpha;
+        ctx.scale(scaleX, scaleY);
+        ctx.drawImage(
+          asset.image,
+          -logicalWidth * anchorX,
+          -logicalHeight * anchorY,
+          logicalWidth,
+          logicalHeight
+        );
+        ctx.restore();
+        return true;
+      }
+
+      function drawCoverImage(assetId, focusX = 0.5, focusY = 0.5) {
+        const asset = getAsset(assetId);
+        if (!asset) return false;
+
+        const scale = Math.max(width / asset.width, height / asset.height);
+        const drawW = asset.width * scale;
+        const drawH = asset.height * scale;
+        const x = (width - drawW) * focusX;
+        const y = (height - drawH) * focusY;
+        ctx.drawImage(asset.image, x, y, drawW, drawH);
+        return true;
       }
 
       function getViewportSize() {
@@ -479,7 +560,7 @@
         ctx.fill();
       }
 
-      function drawBackground(layout) {
+      function drawProceduralBackground(layout) {
         const sky = ctx.createLinearGradient(0, 0, 0, height);
         sky.addColorStop(0, "#7dd3fc");
         sky.addColorStop(0.6, "#b9f3ff");
@@ -512,6 +593,12 @@
         ctx.stroke();
       }
 
+      function drawBackground(layout) {
+        const assetId = width >= height ? "background.landscape" : "background.portrait";
+        if (drawCoverImage(assetId)) return;
+        drawProceduralBackground(layout);
+      }
+
       function drawCloud(x, y, size, alpha) {
         ctx.save();
         ctx.globalAlpha = alpha;
@@ -525,7 +612,7 @@
         ctx.restore();
       }
 
-      function drawHoop(layout) {
+      function drawProceduralHoop(layout) {
         const hoop = layout.hoop;
         const poleTop = hoop.y - hoop.rimR * 1.4;
         ctx.lineCap = "round";
@@ -559,7 +646,27 @@
         }
       }
 
-      function drawDino(x, groundY, size, mood) {
+      function drawHoopBack(layout) {
+        const hoop = layout.hoop;
+        const asset = ASSET_DEFS["prop.hoopBack"];
+        const widthScale = asset ? asset.logicalWidthScale : 5.4;
+        if (drawSprite("prop.hoopBack", hoop.x, hoop.y, hoop.rimR * widthScale)) return;
+        drawProceduralHoop(layout);
+      }
+
+      function drawHoopFront(layout) {
+        const hoop = layout.hoop;
+        const asset = ASSET_DEFS["prop.hoopFront"];
+        const widthScale = asset ? asset.logicalWidthScale : 3.05;
+        drawSprite("prop.hoopFront", hoop.x, hoop.y, hoop.rimR * widthScale);
+      }
+
+      function drawHoop(layout) {
+        drawHoopBack(layout);
+        drawHoopFront(layout);
+      }
+
+      function drawProceduralDino(x, groundY, size, mood) {
         const react = game.dinoReact;
         const happyHop = mood === "happy" ? Math.sin((react / 0.58) * Math.PI) * -size * 0.16 : 0;
         const launchLean = mood === "launch" ? react / 0.18 : 0;
@@ -614,6 +721,31 @@
         ctx.restore();
       }
 
+      function drawDino(x, groundY, size, mood) {
+        const react = game.dinoReact;
+        const happyActive = mood === "happy" && (react > 0.01 || game.state === STATE.START);
+        const happyHop = happyActive ? Math.sin((react / 0.58) * Math.PI) * -size * 0.16 : 0;
+        const launchLean = mood === "launch" ? react / 0.18 : 0;
+        const shrug = mood === "shrug" ? react / 0.34 : 0;
+        const squash = happyActive ? Math.sin((react / 0.58) * Math.PI) * 0.07 : 0;
+        let spriteId = "dino.idle";
+
+        if (mood === "launch") spriteId = "dino.launch";
+        else if (mood === "shrug") spriteId = "dino.shrug";
+        else if (happyActive) spriteId = "dino.happy";
+
+        const asset = ASSET_DEFS[spriteId];
+        const widthScale = asset ? asset.logicalWidthScale : 1.5;
+        ctx.save();
+        ctx.translate(x, groundY + happyHop);
+        ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
+        ctx.scale(1 + squash, 1 - squash);
+        const drewSprite = drawSprite(spriteId, 0, 0, size * widthScale);
+        ctx.restore();
+
+        if (!drewSprite) drawProceduralDino(x, groundY, size, mood);
+      }
+
       function drawBall(ball, idleScale) {
         let stretch = clamp(Math.hypot(ball.vx, ball.vy) / 1700, 0, 0.16);
         let apexPuff = 0;
@@ -623,6 +755,15 @@
         const squeeze = ball.squeeze * 0.16;
         const sx = idleScale * (1 + stretch + squeeze - apexPuff * 0.25);
         const sy = idleScale * (1 - stretch * 0.55 - squeeze + apexPuff);
+        const ballAsset = ASSET_DEFS["prop.basketball"];
+        const widthScale = ballAsset ? ballAsset.logicalWidthScale : 2.28;
+        const rotation = ball.state === "flying" ? ball.age * 7 + ball.x * 0.01 : game.time * 0.08;
+
+        if (drawSprite("prop.basketball", ball.x, ball.y, ball.r * widthScale, {
+          scaleX: sx,
+          scaleY: sy,
+          rotation
+        })) return;
 
         ctx.save();
         ctx.translate(ball.x, ball.y);
@@ -683,7 +824,13 @@
         const y = layout.safe.top + 14;
         const h = clamp(layout.minSide * 0.115, 46, 58);
         const w = Math.max(104, h * 1.9);
-        fillRoundedRect(x, y, w, h, 18, "rgba(255, 255, 255, 0.78)");
+        if (!drawSprite("ui.scoreBadge", x, y + h * 0.5, w, {
+          anchorX: 0,
+          anchorY: 0.5,
+          logicalHeight: h
+        })) {
+          fillRoundedRect(x, y, w, h, 18, "rgba(255, 255, 255, 0.78)");
+        }
         const iconBall = { x: x + h * 0.48, y: y + h * 0.5, r: h * 0.25, vx: 0, vy: 0, state: "ready", squeeze: 0 };
         drawBall(iconBall, 1);
         ctx.fillStyle = "#0f172a";
@@ -695,7 +842,7 @@
 
       function drawStart(layout) {
         drawBackground(layout);
-        drawHoop(layout);
+        drawHoopBack(layout);
         const titleY = layout.safe.top + clamp(height * 0.12, 70, 120);
         ctx.fillStyle = "#0f172a";
         ctx.font = `900 ${clamp(layout.minSide * 0.105, 34, 56)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
@@ -715,6 +862,7 @@
           squeeze: 0
         };
         drawBall(floatingBall, 1);
+        drawHoopFront(layout);
 
         ctx.fillStyle = "#0f172a";
         ctx.font = `800 ${clamp(layout.minSide * 0.07, 24, 36)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
@@ -723,9 +871,10 @@
 
       function drawPlay(layout) {
         drawBackground(layout);
-        drawHoop(layout);
+        drawHoopBack(layout);
         drawDino(layout.dino.x, layout.dino.y, layout.dino.size, game.dinoMood);
         drawBall(game.ball, 1);
+        drawHoopFront(layout);
         drawParticles();
         drawScore(layout);
       }
@@ -804,6 +953,7 @@
       }
 
       resizeCanvas();
+      loadAssets();
       requestAnimationFrame(loop);
     })();
   </script>

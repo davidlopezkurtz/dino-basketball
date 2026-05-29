@@ -58,10 +58,10 @@ window.DINO_ASSETS = {
     "prop.hoopBack": {
       src: "assets/images/props/hoop-back.png",
       kind: "prop",
-      width: 469,
+      width: 560,
       height: 520,
       anchorX: 0.5,
-      anchorY: 0.43,
+      anchorY: 0.6,
       logicalWidthScale: 5.4
     },
     "prop.hoopFront": {

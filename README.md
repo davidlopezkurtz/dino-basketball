@@ -2,12 +2,16 @@
 
 A single-screen, no-fail dinosaur basketball toy for a mobile browser.
 
-This repository currently contains Stage 1 of the build:
+This repository currently contains the Stage 2 progression build:
 
-- One geometric dino, one hoop, one ball
+- One sprite-backed starter dino, one hoop, one ball
 - Tap anywhere to shoot
 - High auto-aim make rate with rare soft misses
 - Confetti, screen shake, squash and stretch, and Web Audio sounds
+- Score persistence with defensive `localStorage` loading
+- Four unlockable cosmetic dinos with a hatch celebration
+- Four courts that unlock through play, with a tap-only court cycler
+- Tap-only dino picker with locked dinos shown as eggs
 - Static GitHub Pages friendly files with no runtime network calls
 - Local image asset repository with manifest-driven Canvas rendering and procedural fallbacks
 
@@ -25,6 +29,6 @@ The game still keeps procedural drawing fallbacks for the background, dino, hoop
 
 Publish the repository root from the `main` branch. The game uses a single `index.html` file plus `.nojekyll`, so there are no root-absolute asset paths to break on a project Pages URL.
 
-## Stage 1 playtest gate
+## Stage 2 playtest gate
 
-Before adding progression, dinos, courts, or persistence, test this on the target phone. The child should be able to tap, see the dino shoot, score most of the time, and want to tap again.
+Before Stage 3 polish, test this on the target phone. Score should persist across reloads, unlocks should feel delightful, the picker should be easy to exit, and the court/dino controls should not get in the way of tap-to-shoot play.

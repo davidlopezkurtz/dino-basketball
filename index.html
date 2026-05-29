@@ -61,14 +61,78 @@
         PARTICLE_COUNT: 42,
         UNLOCK_THRESHOLDS: [5, 15, 30],
         COURT_INTERVAL: 12,
-        MAKE_RATE: 0.9
+        MAKE_RATE: 0.9,
+        HATCH_SECONDS: 3.3,
+        COURT_FLASH_SECONDS: 1.4
       };
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d", { alpha: false });
-      const STATE = { START: "start", PLAY: "play" };
+      const STATE = { START: "start", PLAY: "play", HATCH: "hatch", PICKER: "picker" };
       const TAU = Math.PI * 2;
       const COLORS = ["#fff275", "#ff7a90", "#6ee7b7", "#60a5fa", "#f97316", "#f0abfc"];
+      const SAVE_KEY = "dinoBasketballSave";
+      const SAVE_VERSION = 1;
+      const DINOS = [
+        {
+          id: "trex",
+          unlockAt: 0,
+          hue: 0,
+          saturation: 1,
+          body: "#22c55e",
+          belly: "#d9f99d",
+          dark: "#15803d",
+          egg: "#bbf7d0",
+          accessory: "tail",
+          fanfare: 1,
+          particles: ["#fef08a", "#86efac", "#f97316", "#38bdf8"]
+        },
+        {
+          id: "trike",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[0],
+          hue: 155,
+          saturation: 1.12,
+          body: "#38bdf8",
+          belly: "#cffafe",
+          dark: "#0369a1",
+          egg: "#bae6fd",
+          accessory: "horns",
+          fanfare: 1.12,
+          particles: ["#7dd3fc", "#fde68a", "#f0abfc", "#a7f3d0"]
+        },
+        {
+          id: "stego",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[1],
+          hue: 285,
+          saturation: 1.05,
+          body: "#f472b6",
+          belly: "#fce7f3",
+          dark: "#be185d",
+          egg: "#fbcfe8",
+          accessory: "plates",
+          fanfare: 0.88,
+          particles: ["#f9a8d4", "#fef3c7", "#fb923c", "#c4b5fd"]
+        },
+        {
+          id: "ptero",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[2],
+          hue: 225,
+          saturation: 1.08,
+          body: "#a78bfa",
+          belly: "#ede9fe",
+          dark: "#6d28d9",
+          egg: "#ddd6fe",
+          accessory: "wings",
+          fanfare: 1.25,
+          particles: ["#c4b5fd", "#93c5fd", "#fef08a", "#f0abfc"]
+        }
+      ];
+      const COURTS = [
+        { id: "jungle", unlockAt: 0, title: "Jungle", tint: "rgba(34, 197, 94, 0.04)" },
+        { id: "beach", unlockAt: CONFIG.COURT_INTERVAL, title: "Beach", tint: "rgba(14, 165, 233, 0.13)" },
+        { id: "volcano", unlockAt: CONFIG.COURT_INTERVAL * 2, title: "Volcano", tint: "rgba(239, 68, 68, 0.16)" },
+        { id: "space", unlockAt: CONFIG.COURT_INTERVAL * 3, title: "Space", tint: "rgba(30, 41, 59, 0.2)" }
+      ];
       const ASSET_DEFS = (window.DINO_ASSETS && window.DINO_ASSETS.images) || {};
       const assets = {
         ready: false,
@@ -85,10 +149,14 @@
       let audioContext = null;
       let noiseBuffer = null;
       let lastTapAt = 0;
+      const loadedSave = loadSave();
 
       const game = {
         state: STATE.START,
-        score: 0,
+        score: loadedSave.score,
+        unlockedDinos: loadedSave.unlockedDinos,
+        selectedDino: loadedSave.selectedDino,
+        court: loadedSave.court,
         streak: 0,
         time: 0,
         shakeLeft: 0,
@@ -96,6 +164,12 @@
         dinoMood: "happy",
         queuedShot: false,
         autoLaunchDelay: 0,
+        pendingHatchDino: null,
+        hatch: null,
+        courtFlash: 0,
+        pickerBounce: 0,
+        uiTargets: [],
+        pickerTargets: [],
         particles: [],
         particlePool: [],
         ball: {
@@ -120,6 +194,101 @@
 
       function rand(min, max) {
         return min + Math.random() * (max - min);
+      }
+
+      function defaultSave() {
+        return {
+          version: SAVE_VERSION,
+          score: 0,
+          unlockedDinos: [DINOS[0].id],
+          selectedDino: DINOS[0].id,
+          court: COURTS[0].id
+        };
+      }
+
+      function validDinoIds() {
+        return DINOS.map((dino) => dino.id);
+      }
+
+      function validCourtIds() {
+        return COURTS.map((court) => court.id);
+      }
+
+      function getDinoById(id) {
+        return DINOS.find((dino) => dino.id === id) || DINOS[0];
+      }
+
+      function getCourtById(id) {
+        return COURTS.find((court) => court.id === id) || COURTS[0];
+      }
+
+      function getCurrentDino() {
+        return getDinoById(game.selectedDino);
+      }
+
+      function getCurrentCourt() {
+        return getCourtById(game.court);
+      }
+
+      function unlockedDinosForScore(score) {
+        return DINOS.filter((dino) => score >= dino.unlockAt).map((dino) => dino.id);
+      }
+
+      function unlockedCourtsForScore(score) {
+        return COURTS.filter((court) => score >= court.unlockAt).map((court) => court.id);
+      }
+
+      function normalizeSave(value) {
+        const fallback = defaultSave();
+        if (!value || typeof value !== "object") return fallback;
+
+        const score = Math.max(0, Math.floor(Number(value.score) || 0));
+        const validDinos = new Set(validDinoIds());
+        const earnedDinos = new Set(unlockedDinosForScore(score));
+        const storedDinos = Array.isArray(value.unlockedDinos) ? value.unlockedDinos : [];
+        for (const id of storedDinos) {
+          if (validDinos.has(id)) earnedDinos.add(id);
+        }
+        if (!earnedDinos.size) earnedDinos.add(DINOS[0].id);
+
+        const unlockedDinos = [...earnedDinos].sort((a, b) => getDinoById(a).unlockAt - getDinoById(b).unlockAt);
+        const selectedDino = unlockedDinos.includes(value.selectedDino) ? value.selectedDino : unlockedDinos[0];
+        const unlockedCourts = unlockedCourtsForScore(score);
+        const court = validCourtIds().includes(value.court) && unlockedCourts.includes(value.court)
+          ? value.court
+          : unlockedCourts[unlockedCourts.length - 1] || COURTS[0].id;
+
+        return {
+          version: SAVE_VERSION,
+          score,
+          unlockedDinos,
+          selectedDino,
+          court
+        };
+      }
+
+      function loadSave() {
+        try {
+          const raw = localStorage.getItem(SAVE_KEY);
+          return normalizeSave(raw ? JSON.parse(raw) : null);
+        } catch (error) {
+          return defaultSave();
+        }
+      }
+
+      function saveGame() {
+        try {
+          const payload = {
+            version: SAVE_VERSION,
+            score: game.score,
+            unlockedDinos: game.unlockedDinos,
+            selectedDino: game.selectedDino,
+            court: game.court
+          };
+          localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+        } catch (error) {
+          // localStorage can be unavailable in private modes. The game still plays.
+        }
       }
 
       function loadAssets() {
@@ -343,6 +512,21 @@
         playTone({ type: "sine", start: 660, end: 920, duration: 0.12, gain: 0.025 });
       }
 
+      function playDinoCheer(dino) {
+        const pitch = dino.fanfare || 1;
+        window.setTimeout(() => {
+          playTone({ type: "square", start: 160 * pitch, end: 115 * pitch, duration: 0.11, gain: 0.024 });
+        }, 80);
+      }
+
+      function playFanfare(dino) {
+        const pitch = dino.fanfare || 1;
+        playTone({ type: "triangle", start: 392 * pitch, end: 523 * pitch, duration: 0.16, gain: 0.06 });
+        window.setTimeout(() => playTone({ type: "triangle", start: 523 * pitch, end: 659 * pitch, duration: 0.16, gain: 0.06 }), 135);
+        window.setTimeout(() => playTone({ type: "sine", start: 659 * pitch, end: 988 * pitch, duration: 0.28, gain: 0.075 }), 275);
+        window.setTimeout(() => playDinoCheer(dino), 520);
+      }
+
       function launchShot() {
         const ball = game.ball;
         if (ball.state !== "ready") {
@@ -388,6 +572,70 @@
         playTap();
       }
 
+      function handleProgressionAfterScore() {
+        const previousDinos = new Set(game.unlockedDinos);
+        const earnedDinos = unlockedDinosForScore(game.score);
+        let newlyUnlockedDino = null;
+
+        for (const id of earnedDinos) {
+          if (!previousDinos.has(id)) {
+            newlyUnlockedDino = id;
+            break;
+          }
+        }
+
+        game.unlockedDinos = earnedDinos;
+        if (newlyUnlockedDino) {
+          game.selectedDino = newlyUnlockedDino;
+          game.pendingHatchDino = newlyUnlockedDino;
+        }
+
+        const courtsBefore = unlockedCourtsForScore(Math.max(0, game.score - 1));
+        const courtsNow = unlockedCourtsForScore(game.score);
+        if (courtsNow.length > courtsBefore.length) {
+          game.court = courtsNow[courtsNow.length - 1];
+          game.courtFlash = CONFIG.COURT_FLASH_SECONDS;
+          spawnParticles(width * 0.5, height * 0.34, Math.floor(CONFIG.PARTICLE_COUNT * 0.8), ["#fef08a", "#38bdf8", "#fb7185", "#a78bfa"]);
+        }
+
+        saveGame();
+      }
+
+      function startHatch(dinoId) {
+        const dino = getDinoById(dinoId);
+        game.state = STATE.HATCH;
+        game.hatch = {
+          time: 0,
+          duration: CONFIG.HATCH_SECONDS,
+          dinoId
+        };
+        game.queuedShot = false;
+        game.autoLaunchDelay = 0;
+        game.ball.state = "ready";
+        game.dinoReact = 0.58;
+        game.dinoMood = "happy";
+        spawnParticles(width * 0.5, height * 0.42, CONFIG.PARTICLE_COUNT + 18, dino.particles);
+        playFanfare(dino);
+      }
+
+      function endHatch() {
+        game.state = STATE.PLAY;
+        game.hatch = null;
+        game.dinoReact = 0.58;
+        game.dinoMood = "happy";
+        resetReadyBall();
+      }
+
+      function cycleCourt() {
+        const unlocked = unlockedCourtsForScore(game.score);
+        if (unlocked.length < 2) return;
+        const currentIndex = Math.max(0, unlocked.indexOf(game.court));
+        game.court = unlocked[(currentIndex + 1) % unlocked.length];
+        game.courtFlash = CONFIG.COURT_FLASH_SECONDS * 0.8;
+        spawnParticles(width * 0.5, height * 0.32, Math.floor(CONFIG.PARTICLE_COUNT * 0.55));
+        saveGame();
+      }
+
       function scoreBasket(forceCenter) {
         const ball = game.ball;
         if (ball.scored) return;
@@ -407,8 +655,11 @@
         game.shakeLeft = CONFIG.SHAKE_MS / 1000;
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
-        spawnParticles(layout.hoop.x, layout.hoop.y, CONFIG.PARTICLE_COUNT + Math.min(game.streak, 6) * 3);
+        const dino = getCurrentDino();
+        spawnParticles(layout.hoop.x, layout.hoop.y, CONFIG.PARTICLE_COUNT + Math.min(game.streak, 6) * 3, dino.particles);
         playSwish();
+        playDinoCheer(dino);
+        handleProgressionAfterScore();
       }
 
       function finishMiss() {
@@ -431,6 +682,12 @@
       function finishMake() {
         const ball = game.ball;
         ball.state = "ready";
+        if (game.pendingHatchDino) {
+          const dinoId = game.pendingHatchDino;
+          game.pendingHatchDino = null;
+          startHatch(dinoId);
+          return;
+        }
         resetReadyBall();
         if (game.queuedShot) {
           game.queuedShot = false;
@@ -438,7 +695,8 @@
         }
       }
 
-      function spawnParticles(x, y, count) {
+      function spawnParticles(x, y, count, palette = null) {
+        const colors = palette && palette.length ? palette : COLORS;
         for (let i = 0; i < count; i += 1) {
           const p = game.particlePool.pop() || {};
           const angle = rand(-Math.PI, 0);
@@ -452,7 +710,7 @@
           p.size = rand(4, 9);
           p.spin = rand(-7, 7);
           p.rot = rand(0, TAU);
-          p.color = COLORS[(Math.random() * COLORS.length) | 0];
+          p.color = colors[(Math.random() * colors.length) | 0];
           p.star = Math.random() < 0.35;
           game.particles.push(p);
         }
@@ -532,6 +790,8 @@
         game.time += dt;
         game.shakeLeft = Math.max(0, game.shakeLeft - dt);
         game.dinoReact = Math.max(0, game.dinoReact - dt);
+        game.courtFlash = Math.max(0, game.courtFlash - dt);
+        game.pickerBounce = Math.max(0, game.pickerBounce - dt);
         updateParticles(dt);
 
         if (game.state === STATE.PLAY) {
@@ -540,6 +800,9 @@
             if (game.autoLaunchDelay <= 0) launchShot();
           }
           updateBall(dt);
+        } else if (game.state === STATE.HATCH && game.hatch) {
+          game.hatch.time += dt;
+          if (game.hatch.time >= game.hatch.duration) endHatch();
         }
       }
 
@@ -593,10 +856,110 @@
         ctx.stroke();
       }
 
+      function drawSpaceBackground(layout) {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, "#111827");
+        sky.addColorStop(0.55, "#312e81");
+        sky.addColorStop(1, "#4c1d95");
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        for (let i = 0; i < 52; i += 1) {
+          const x = (i * 73 + 19) % Math.max(1, width);
+          const y = (i * 41 + 27) % Math.max(1, layout.groundY - 20);
+          const r = 1 + (i % 3) * 0.55;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, TAU);
+          ctx.fill();
+        }
+
+        ctx.fillStyle = "#fde68a";
+        ctx.beginPath();
+        ctx.arc(width * 0.18, height * 0.17, clamp(layout.minSide * 0.06, 24, 42), 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = "rgba(17, 24, 39, 0.35)";
+        ctx.beginPath();
+        ctx.arc(width * 0.2, height * 0.145, clamp(layout.minSide * 0.06, 24, 42), 0, TAU);
+        ctx.fill();
+
+        ctx.fillStyle = "#6d28d9";
+        ctx.fillRect(0, layout.groundY, width, height - layout.groundY);
+        ctx.fillStyle = "#8b5cf6";
+        for (let x = -20; x < width + 20; x += 48) {
+          ctx.beginPath();
+          ctx.ellipse(x, layout.groundY + 12, 38, 9, 0, 0, TAU);
+          ctx.fill();
+        }
+      }
+
+      function drawCourtOverlay(court, layout) {
+        if (court.tint) {
+          ctx.fillStyle = court.tint;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        if (court.id === "beach") {
+          ctx.fillStyle = "rgba(14, 165, 233, 0.28)";
+          ctx.fillRect(0, layout.groundY - layout.minSide * 0.18, width, layout.minSide * 0.24);
+          ctx.fillStyle = "rgba(253, 230, 138, 0.75)";
+          ctx.fillRect(0, layout.groundY, width, height - layout.groundY);
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+          ctx.lineWidth = 3;
+          for (let y = layout.groundY - layout.minSide * 0.16; y < layout.groundY - 8; y += 18) {
+            ctx.beginPath();
+            for (let x = -20; x <= width + 20; x += 18) {
+              const waveY = y + Math.sin((x + game.time * 65) * 0.04) * 3;
+              if (x === -20) ctx.moveTo(x, waveY);
+              else ctx.lineTo(x, waveY);
+            }
+            ctx.stroke();
+          }
+        } else if (court.id === "volcano") {
+          ctx.fillStyle = "rgba(127, 29, 29, 0.36)";
+          ctx.beginPath();
+          ctx.moveTo(width * 0.05, layout.groundY);
+          ctx.lineTo(width * 0.28, layout.groundY - layout.minSide * 0.36);
+          ctx.lineTo(width * 0.5, layout.groundY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "#fb923c";
+          ctx.beginPath();
+          ctx.moveTo(width * 0.25, layout.groundY - layout.minSide * 0.28);
+          ctx.lineTo(width * 0.31, layout.groundY - layout.minSide * 0.28);
+          ctx.lineTo(width * 0.29, layout.groundY - layout.minSide * 0.12);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "rgba(251, 146, 60, 0.85)";
+          for (let i = 0; i < 10; i += 1) {
+            const x = (i * 97 + game.time * 22) % width;
+            const y = layout.groundY - ((i * 41 + game.time * 34) % Math.max(80, layout.groundY * 0.5));
+            ctx.beginPath();
+            ctx.arc(x, y, 2 + (i % 3), 0, TAU);
+            ctx.fill();
+          }
+        } else if (court.id === "jungle") {
+          ctx.fillStyle = "rgba(21, 128, 61, 0.24)";
+          for (let i = 0; i < 8; i += 1) {
+            const x = (i * 113 + 29) % Math.max(1, width);
+            const y = layout.groundY - 18 - (i % 3) * 22;
+            ctx.beginPath();
+            ctx.ellipse(x, y, 24, 8, (i % 2 ? -0.35 : 0.35), 0, TAU);
+            ctx.fill();
+          }
+        }
+      }
+
       function drawBackground(layout) {
+        const court = getCurrentCourt();
+        if (court.id === "space") {
+          drawSpaceBackground(layout);
+          return;
+        }
+
         const assetId = width >= height ? "background.landscape" : "background.portrait";
-        if (drawCoverImage(assetId)) return;
-        drawProceduralBackground(layout);
+        if (!drawCoverImage(assetId)) drawProceduralBackground(layout);
+        drawCourtOverlay(court, layout);
       }
 
       function drawCloud(x, y, size, alpha) {
@@ -647,14 +1010,18 @@
       }
 
       function drawHoopBack(layout) {
+        if (!getAsset("prop.hoopBack") || !getAsset("prop.hoopFront")) {
+          drawProceduralHoop(layout);
+          return;
+        }
         const hoop = layout.hoop;
         const asset = ASSET_DEFS["prop.hoopBack"];
         const widthScale = asset ? asset.logicalWidthScale : 5.4;
-        if (drawSprite("prop.hoopBack", hoop.x, hoop.y, hoop.rimR * widthScale)) return;
-        drawProceduralHoop(layout);
+        drawSprite("prop.hoopBack", hoop.x, hoop.y, hoop.rimR * widthScale);
       }
 
       function drawHoopFront(layout) {
+        if (!getAsset("prop.hoopBack") || !getAsset("prop.hoopFront")) return;
         const hoop = layout.hoop;
         const asset = ASSET_DEFS["prop.hoopFront"];
         const widthScale = asset ? asset.logicalWidthScale : 3.05;
@@ -666,7 +1033,59 @@
         drawHoopFront(layout);
       }
 
-      function drawProceduralDino(x, groundY, size, mood) {
+      function drawDinoAccessory(dino, size, layer) {
+        ctx.save();
+        ctx.lineJoin = "round";
+        if (dino.accessory === "wings" && layer === "behind") {
+          ctx.fillStyle = dino.dark;
+          ctx.globalAlpha *= 0.45;
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.16, -size * 0.54);
+          ctx.quadraticCurveTo(-size * 0.72, -size * 0.82, -size * 0.76, -size * 0.28);
+          ctx.quadraticCurveTo(-size * 0.48, -size * 0.42, -size * 0.16, -size * 0.38);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        if (layer === "front") {
+          if (dino.accessory === "horns") {
+            ctx.fillStyle = "#fef3c7";
+            ctx.strokeStyle = "#92400e";
+            ctx.lineWidth = Math.max(2, size * 0.018);
+            const hornPoints = [
+              [size * 0.36, -size * 0.9, size * 0.2, -size * 1.08, size * 0.43, -size * 0.82],
+              [size * 0.55, -size * 0.84, size * 0.76, -size * 0.96, size * 0.58, -size * 0.72]
+            ];
+            for (const points of hornPoints) {
+              ctx.beginPath();
+              ctx.moveTo(points[0], points[1]);
+              ctx.lineTo(points[2], points[3]);
+              ctx.lineTo(points[4], points[5]);
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+            }
+          } else if (dino.accessory === "plates") {
+            ctx.fillStyle = "#fef08a";
+            ctx.strokeStyle = dino.dark;
+            ctx.lineWidth = Math.max(2, size * 0.018);
+            for (let i = 0; i < 5; i += 1) {
+              const x = -size * 0.42 + i * size * 0.16;
+              const y = -size * (0.67 + Math.sin(i) * 0.04);
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(x + size * 0.08, y - size * 0.18);
+              ctx.lineTo(x + size * 0.17, y);
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawProceduralDino(x, groundY, size, mood, dino = getCurrentDino()) {
         const react = game.dinoReact;
         const happyHop = mood === "happy" ? Math.sin((react / 0.58) * Math.PI) * -size * 0.16 : 0;
         const launchLean = mood === "launch" ? react / 0.18 : 0;
@@ -678,7 +1097,9 @@
         ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
         ctx.scale(1 + squash, 1 - squash);
 
-        ctx.fillStyle = "#1fbf75";
+        drawDinoAccessory(dino, size, "behind");
+
+        ctx.fillStyle = dino.body;
         ctx.beginPath();
         ctx.moveTo(-size * 0.48, -size * 0.38);
         ctx.lineTo(-size * 0.88, -size * 0.55);
@@ -686,21 +1107,21 @@
         ctx.closePath();
         ctx.fill();
 
-        fillRoundedRect(-size * 0.48, -size * 0.62, size * 0.82, size * 0.44, size * 0.18, "#1fbf75");
-        fillRoundedRect(size * 0.12, -size * 0.93, size * 0.46, size * 0.34, size * 0.14, "#22c55e");
-        fillRoundedRect(size * 0.43, -size * 0.86, size * 0.28, size * 0.18, size * 0.08, "#22c55e");
+        fillRoundedRect(-size * 0.48, -size * 0.62, size * 0.82, size * 0.44, size * 0.18, dino.body);
+        fillRoundedRect(size * 0.12, -size * 0.93, size * 0.46, size * 0.34, size * 0.14, dino.body);
+        fillRoundedRect(size * 0.43, -size * 0.86, size * 0.28, size * 0.18, size * 0.08, dino.body);
 
-        ctx.fillStyle = "#d9f99d";
+        ctx.fillStyle = dino.belly;
         ctx.beginPath();
         ctx.ellipse(-size * 0.08, -size * 0.43, size * 0.26, size * 0.13, 0, 0, TAU);
         ctx.fill();
 
-        fillRoundedRect(-size * 0.34, -size * 0.21, size * 0.17, size * 0.22, size * 0.07, "#15803d");
-        fillRoundedRect(size * 0.04, -size * 0.21, size * 0.17, size * 0.22, size * 0.07, "#15803d");
+        fillRoundedRect(-size * 0.34, -size * 0.21, size * 0.17, size * 0.22, size * 0.07, dino.dark);
+        fillRoundedRect(size * 0.04, -size * 0.21, size * 0.17, size * 0.22, size * 0.07, dino.dark);
         fillRoundedRect(-size * 0.39, -size * 0.03, size * 0.24, size * 0.07, size * 0.04, "#14532d");
         fillRoundedRect(size * 0.01, -size * 0.03, size * 0.24, size * 0.07, size * 0.04, "#14532d");
 
-        ctx.strokeStyle = "#15803d";
+        ctx.strokeStyle = dino.dark;
         ctx.lineWidth = Math.max(4, size * 0.055);
         ctx.lineCap = "round";
         ctx.beginPath();
@@ -718,10 +1139,12 @@
         ctx.arc(size * 0.57, -size * 0.76, size * 0.07, 0.15, Math.PI * 0.78);
         ctx.stroke();
 
+        drawDinoAccessory(dino, size, "front");
+
         ctx.restore();
       }
 
-      function drawDino(x, groundY, size, mood) {
+      function drawDinoForDino(dino, x, groundY, size, mood) {
         const react = game.dinoReact;
         const happyActive = mood === "happy" && (react > 0.01 || game.state === STATE.START);
         const happyHop = happyActive ? Math.sin((react / 0.58) * Math.PI) * -size * 0.16 : 0;
@@ -740,10 +1163,18 @@
         ctx.translate(x, groundY + happyHop);
         ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
         ctx.scale(1 + squash, 1 - squash);
+        drawDinoAccessory(dino, size, "behind");
+        ctx.filter = `hue-rotate(${dino.hue || 0}deg) saturate(${dino.saturation || 1})`;
         const drewSprite = drawSprite(spriteId, 0, 0, size * widthScale);
+        ctx.filter = "none";
+        if (drewSprite) drawDinoAccessory(dino, size, "front");
         ctx.restore();
 
-        if (!drewSprite) drawProceduralDino(x, groundY, size, mood);
+        if (!drewSprite) drawProceduralDino(x, groundY, size, mood, dino);
+      }
+
+      function drawDino(x, groundY, size, mood) {
+        drawDinoForDino(getCurrentDino(), x, groundY, size, mood);
       }
 
       function drawBall(ball, idleScale) {
@@ -819,6 +1250,164 @@
         ctx.fill();
       }
 
+      function drawEgg(x, y, size, dino, crack = 0) {
+        ctx.save();
+        const wobble = Math.sin(game.time * 10) * crack * 0.06;
+        ctx.translate(x, y);
+        ctx.rotate(wobble);
+
+        const split = clamp((crack - 0.68) / 0.32, 0, 1) * size * 0.1;
+        ctx.fillStyle = dino.egg;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.18)";
+        ctx.lineWidth = Math.max(2, size * 0.03);
+        ctx.beginPath();
+        ctx.ellipse(-split, 0, size * 0.42, size * 0.56, -0.08, Math.PI * 0.45, Math.PI * 1.55);
+        ctx.ellipse(split, 0, size * 0.42, size * 0.56, 0.08, -Math.PI * 0.55, Math.PI * 0.55);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.beginPath();
+        ctx.ellipse(-size * 0.12, -size * 0.14, size * 0.08, size * 0.13, -0.45, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = dino.body;
+        for (let i = 0; i < 4; i += 1) {
+          ctx.beginPath();
+          ctx.ellipse(size * (-0.2 + i * 0.14), size * (0.14 - (i % 2) * 0.34), size * 0.055, size * 0.04, i * 0.4, 0, TAU);
+          ctx.fill();
+        }
+
+        if (crack > 0.12) {
+          ctx.strokeStyle = "rgba(15, 23, 42, 0.55)";
+          ctx.lineWidth = Math.max(2, size * 0.025);
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.2, -size * 0.08);
+          ctx.lineTo(-size * 0.05, size * 0.03);
+          ctx.lineTo(size * 0.05, -size * 0.03);
+          ctx.lineTo(size * 0.22, size * 0.08);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function getPlayControls(layout) {
+        const size = clamp(layout.minSide * 0.13, 52, 68);
+        const y = height - layout.safe.bottom - size * 0.68;
+        const controls = [
+          { type: "picker", x: layout.safe.left + size * 0.74, y, r: size * 0.52, size }
+        ];
+        if (unlockedCourtsForScore(game.score).length > 1) {
+          controls.push({ type: "court", x: width - layout.safe.right - size * 0.74, y, r: size * 0.52, size });
+        }
+        return controls;
+      }
+
+      function drawCourtIcon(x, y, size) {
+        const court = getCurrentCourt();
+        ctx.save();
+        ctx.translate(x, y);
+        fillRoundedRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.44, size * 0.08, "#e0f2fe");
+        if (court.id === "space") {
+          ctx.fillStyle = "#312e81";
+          ctx.fillRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.44);
+          ctx.fillStyle = "#fef08a";
+          ctx.beginPath();
+          ctx.arc(size * 0.13, -size * 0.07, size * 0.06, 0, TAU);
+          ctx.fill();
+        } else if (court.id === "volcano") {
+          ctx.fillStyle = "#7f1d1d";
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.24, size * 0.18);
+          ctx.lineTo(0, -size * 0.18);
+          ctx.lineTo(size * 0.25, size * 0.18);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "#fb923c";
+          ctx.beginPath();
+          ctx.arc(0, -size * 0.12, size * 0.05, 0, TAU);
+          ctx.fill();
+        } else if (court.id === "beach") {
+          ctx.fillStyle = "#38bdf8";
+          ctx.fillRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.23);
+          ctx.fillStyle = "#fde68a";
+          ctx.fillRect(-size * 0.32, size * 0.01, size * 0.64, size * 0.21);
+        } else {
+          ctx.fillStyle = "#22c55e";
+          ctx.beginPath();
+          ctx.ellipse(0, size * 0.08, size * 0.29, size * 0.12, 0, 0, TAU);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      function drawPlayControls(layout) {
+        game.uiTargets = getPlayControls(layout);
+        for (const target of game.uiTargets) {
+          ctx.save();
+          ctx.globalAlpha = 0.92;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, target.r, 0, TAU);
+          ctx.fill();
+          ctx.strokeStyle = "rgba(15, 23, 42, 0.18)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.restore();
+
+          if (target.type === "picker") {
+            drawDinoForDino(getCurrentDino(), target.x, target.y + target.size * 0.32, target.size * 0.35, "happy");
+          } else {
+            drawCourtIcon(target.x, target.y, target.size * 0.8);
+          }
+        }
+      }
+
+      function getBackButton(layout) {
+        const size = clamp(layout.minSide * 0.12, 46, 62);
+        return {
+          type: "back",
+          x: layout.safe.left + size * 0.75,
+          y: layout.safe.top + size * 0.75,
+          r: size * 0.5,
+          size
+        };
+      }
+
+      function getPickerTiles(layout) {
+        const tile = clamp(layout.minSide * 0.27, 94, 142);
+        const gap = clamp(layout.minSide * 0.045, 14, 24);
+        const gridW = tile * 2 + gap;
+        const gridH = tile * 2 + gap;
+        const startX = width * 0.5 - gridW * 0.5 + tile * 0.5;
+        const startY = height * 0.5 - gridH * 0.5 + tile * 0.5 + layout.safe.top * 0.2;
+        return DINOS.map((dino, index) => ({
+          dino,
+          x: startX + (index % 2) * (tile + gap),
+          y: startY + Math.floor(index / 2) * (tile + gap),
+          w: tile,
+          h: tile,
+          locked: !game.unlockedDinos.includes(dino.id)
+        }));
+      }
+
+      function drawCourtBanner(layout) {
+        if (game.courtFlash <= 0) return;
+        const alpha = clamp(game.courtFlash / CONFIG.COURT_FLASH_SECONDS, 0, 1);
+        const h = clamp(layout.minSide * 0.11, 42, 58);
+        const w = clamp(layout.minSide * 0.46, 160, 240);
+        const x = width * 0.5 - w * 0.5;
+        const y = layout.safe.top + clamp(layout.minSide * 0.16, 62, 86);
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.9, alpha);
+        fillRoundedRect(x, y, w, h, 18, "rgba(255, 255, 255, 0.86)");
+        ctx.fillStyle = "#0f172a";
+        ctx.font = `800 ${Math.floor(h * 0.48)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(getCurrentCourt().title, width * 0.5, y + h * 0.53);
+        ctx.restore();
+      }
+
       function drawScore(layout) {
         const x = layout.safe.left + 16;
         const y = layout.safe.top + 14;
@@ -877,6 +1466,81 @@
         drawHoopFront(layout);
         drawParticles();
         drawScore(layout);
+        drawCourtBanner(layout);
+        drawPlayControls(layout);
+      }
+
+      function drawHatch(layout) {
+        const hatch = game.hatch || { time: 0, duration: CONFIG.HATCH_SECONDS, dinoId: game.selectedDino };
+        const dino = getDinoById(hatch.dinoId);
+        const progress = clamp(hatch.time / hatch.duration, 0, 1);
+        const crack = clamp((progress - 0.12) / 0.46, 0, 1);
+        const reveal = clamp((progress - 0.36) / 0.34, 0, 1);
+        const eggSize = clamp(layout.minSide * 0.34, 116, 176);
+        const centerX = width * 0.5;
+        const eggY = height * 0.51;
+        const dinoSize = clamp(layout.minSide * 0.26, 92, 138);
+
+        drawBackground(layout);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
+        ctx.fillRect(0, 0, width, height);
+        drawParticles();
+
+        ctx.save();
+        ctx.globalAlpha = reveal;
+        drawDinoForDino(dino, centerX, eggY + eggSize * 0.74 - reveal * eggSize * 0.32, dinoSize, "happy");
+        ctx.restore();
+
+        if (progress < 0.86) drawEgg(centerX, eggY + Math.sin(game.time * 8) * crack * 6, eggSize, dino, crack);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = `900 ${clamp(layout.minSide * 0.095, 32, 54)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("New dino!", width * 0.5, layout.safe.top + clamp(height * 0.15, 84, 130));
+      }
+
+      function drawPicker(layout) {
+        drawBackground(layout);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+        ctx.fillRect(0, 0, width, height);
+
+        const back = getBackButton(layout);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.86)";
+        ctx.beginPath();
+        ctx.arc(back.x, back.y, back.r, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = Math.max(4, back.size * 0.075);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(back.x + back.size * 0.13, back.y - back.size * 0.18);
+        ctx.lineTo(back.x - back.size * 0.13, back.y);
+        ctx.lineTo(back.x + back.size * 0.13, back.y + back.size * 0.18);
+        ctx.stroke();
+
+        game.pickerTargets = getPickerTiles(layout);
+        for (const tile of game.pickerTargets) {
+          const selected = tile.dino.id === game.selectedDino;
+          const bounce = tile.locked && game.pickerBounce > 0 ? Math.sin(game.pickerBounce * 44) * 4 : 0;
+          const x = tile.x - tile.w * 0.5;
+          const y = tile.y - tile.h * 0.5 + bounce;
+          fillRoundedRect(x, y, tile.w, tile.h, 18, selected ? "rgba(254, 240, 138, 0.92)" : "rgba(255, 255, 255, 0.84)");
+          ctx.strokeStyle = selected ? "#f97316" : "rgba(15, 23, 42, 0.18)";
+          ctx.lineWidth = selected ? 5 : 3;
+          roundedRect(x, y, tile.w, tile.h, 18);
+          ctx.stroke();
+
+          if (tile.locked) {
+            drawEgg(tile.x, tile.y + tile.h * 0.02 + bounce, tile.w * 0.54, tile.dino, 0);
+          } else {
+            drawDinoForDino(tile.dino, tile.x, tile.y + tile.h * 0.38 + bounce, tile.w * 0.42, "happy");
+          }
+        }
       }
 
       function draw() {
@@ -892,13 +1556,87 @@
         }
 
         if (game.state === STATE.START) drawStart(layout);
+        else if (game.state === STATE.HATCH) drawHatch(layout);
+        else if (game.state === STATE.PICKER) drawPicker(layout);
         else drawPlay(layout);
 
         ctx.restore();
       }
 
+      function getTapPoint(event) {
+        const touch = event && event.changedTouches && event.changedTouches[0];
+        const source = touch || event || { clientX: width * 0.5, clientY: height * 0.5 };
+        return {
+          x: source.clientX,
+          y: source.clientY
+        };
+      }
+
+      function hitCircle(point, target, pad = 0) {
+        return Math.hypot(point.x - target.x, point.y - target.y) <= target.r + pad;
+      }
+
+      function hitRect(point, tile) {
+        return point.x >= tile.x - tile.w * 0.5 &&
+          point.x <= tile.x + tile.w * 0.5 &&
+          point.y >= tile.y - tile.h * 0.5 &&
+          point.y <= tile.y + tile.h * 0.5;
+      }
+
+      function handlePlayControlTap(point) {
+        const layout = getLayout();
+        for (const target of getPlayControls(layout)) {
+          if (!hitCircle(point, target, 12)) continue;
+
+          if (target.type === "picker") {
+            game.state = STATE.PICKER;
+            game.queuedShot = false;
+            game.autoLaunchDelay = 0;
+            playTap();
+            return true;
+          }
+
+          if (target.type === "court") {
+            cycleCourt();
+            playTap();
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function handlePickerTap(point) {
+        const layout = getLayout();
+        const back = getBackButton(layout);
+        if (hitCircle(point, back, 10)) {
+          game.state = STATE.PLAY;
+          playTap();
+          resetReadyBall();
+          return;
+        }
+
+        for (const tile of getPickerTiles(layout)) {
+          if (!hitRect(point, tile)) continue;
+          if (tile.locked) {
+            game.pickerBounce = 0.3;
+            playMiss();
+            return;
+          }
+
+          game.selectedDino = tile.dino.id;
+          game.state = STATE.PLAY;
+          game.dinoReact = 0.46;
+          game.dinoMood = "happy";
+          saveGame();
+          playTap();
+          resetReadyBall();
+          return;
+        }
+      }
+
       function handleTap(event) {
         if (event) event.preventDefault();
+        const point = getTapPoint(event);
         const now = performance.now();
         if (now - lastTapAt < 90) return;
         lastTapAt = now;
@@ -912,6 +1650,18 @@
           resetReadyBall();
           return;
         }
+
+        if (game.state === STATE.HATCH) {
+          if (game.hatch && game.hatch.time > 1.1) endHatch();
+          return;
+        }
+
+        if (game.state === STATE.PICKER) {
+          handlePickerTap(point);
+          return;
+        }
+
+        if (handlePlayControlTap(point)) return;
         launchShot();
       }
 

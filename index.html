@@ -1017,7 +1017,43 @@
         const hoop = layout.hoop;
         const asset = ASSET_DEFS["prop.hoopBack"];
         const widthScale = asset ? asset.logicalWidthScale : 5.4;
+        drawHoopPoleExtension(layout);
         drawSprite("prop.hoopBack", hoop.x, hoop.y, hoop.rimR * widthScale);
+      }
+
+      function drawHoopPoleExtension(layout) {
+        const hoop = layout.hoop;
+        const topY = hoop.y + hoop.rimR * 1.45;
+        const bottomY = layout.groundY + 8;
+        if (bottomY <= topY) return;
+
+        const x = hoop.x;
+        const poleW = Math.max(12, hoop.rimR * 0.54);
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(71, 85, 105, 0.38)";
+        ctx.lineWidth = poleW + 7;
+        ctx.beginPath();
+        ctx.moveTo(x + 2, topY + 2);
+        ctx.lineTo(x + 2, bottomY);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#aeb8c3";
+        ctx.lineWidth = poleW;
+        ctx.beginPath();
+        ctx.moveTo(x, topY);
+        ctx.lineTo(x, bottomY);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.48)";
+        ctx.lineWidth = Math.max(3, poleW * 0.22);
+        ctx.beginPath();
+        ctx.moveTo(x - poleW * 0.22, topY + 6);
+        ctx.lineTo(x - poleW * 0.22, bottomY - 8);
+        ctx.stroke();
+
+        fillRoundedRect(x - poleW * 1.15, layout.groundY - 2, poleW * 2.3, poleW * 0.82, poleW * 0.32, "#8f9aa6");
+        ctx.restore();
       }
 
       function drawHoopFront(layout) {

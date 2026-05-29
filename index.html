@@ -1085,17 +1085,18 @@
 
       function drawBackground(layout) {
         const court = getCurrentCourt();
+        const orientation = width >= height ? "landscape" : "portrait";
+        const courtAssetId = `background.${court.id}.${orientation}`;
+        if (drawCoverImage(courtAssetId)) return;
+
         if (court.id === "space") {
           drawSpaceBackground(layout);
           return;
         }
 
-        const orientation = width >= height ? "landscape" : "portrait";
-        const courtAssetId = `background.${court.id}.${orientation}`;
-        const hasCourtAsset = Boolean(ASSET_DEFS[courtAssetId]);
-        const assetId = hasCourtAsset ? courtAssetId : `background.${orientation}`;
+        const assetId = `background.${orientation}`;
         if (!drawCoverImage(assetId)) drawProceduralBackground(layout);
-        if (!hasCourtAsset) drawCourtOverlay(court, layout);
+        drawCourtOverlay(court, layout);
       }
 
       function drawCloud(x, y, size, alpha) {
@@ -1316,22 +1317,6 @@
         ctx.restore();
       }
 
-      function getDinoSpriteId(dino, mood, happyActive) {
-        let pose = "idle";
-        if (mood === "launch") pose = "launch";
-        else if (mood === "shrug") pose = "shrug";
-        else if (happyActive) pose = "happy";
-
-        const specific = `dino.${dino.id}.${pose}`;
-        if (ASSET_DEFS[specific]) return specific;
-        const idle = `dino.${dino.id}.idle`;
-        if (ASSET_DEFS[idle]) return idle;
-        if (pose === "happy" && ASSET_DEFS["dino.happy"]) return "dino.happy";
-        if (pose === "launch" && ASSET_DEFS["dino.launch"]) return "dino.launch";
-        if (pose === "shrug" && ASSET_DEFS["dino.shrug"]) return "dino.shrug";
-        return "dino.idle";
-      }
-
       function drawDinoForDino(dino, x, groundY, size, mood) {
         const react = game.dinoReact;
         const happyActive = mood === "happy" && (react > 0.01 || game.state === STATE.START);
@@ -1339,8 +1324,10 @@
         const launchLean = mood === "launch" ? react / 0.18 : 0;
         const shrug = mood === "shrug" ? react / 0.34 : 0;
         const squash = happyActive ? Math.sin((react / 0.58) * Math.PI) * 0.07 : 0;
-        const spriteId = getDinoSpriteId(dino, mood, happyActive);
-        const specificSprite = spriteId.startsWith(`dino.${dino.id}.`);
+        const pose = getPoseForMood(mood, happyActive);
+        const spriteChoice = getDinoSpriteChoice(dino, pose);
+        const spriteId = spriteChoice.id;
+        const specificSprite = spriteChoice.specific;
         const asset = ASSET_DEFS[spriteId];
         const widthScale = asset ? asset.logicalWidthScale : 1.5;
         ctx.save();

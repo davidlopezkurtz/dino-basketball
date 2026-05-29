@@ -66,12 +66,16 @@
         COURT_FLASH_SECONDS: 1.4,
         SPECIAL_SHOT_INTERVAL: 4,
         SURPRISE_MIN_BASKETS: 5,
-        SURPRISE_MAX_BASKETS: 8
+        SURPRISE_MAX_BASKETS: 8,
+        FINAL_SCORE: 50,
+        HATCH_TAPS: 4,
+        HATCH_REVEAL_SECONDS: 0.7,
+        END_RESTART_DELAY: 0.8
       };
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d", { alpha: false });
-      const STATE = { START: "start", PLAY: "play", HATCH: "hatch", PICKER: "picker", STICKERS: "stickers" };
+      const STATE = { START: "start", PLAY: "play", HATCH: "hatch", PICKER: "picker", STICKERS: "stickers", END: "end" };
       const TAU = Math.PI * 2;
       const COLORS = ["#fff275", "#ff7a90", "#6ee7b7", "#60a5fa", "#f97316", "#f0abfc"];
       const SPECIAL_SHOTS = ["rainbow", "bank", "moon", "dunk", "star", "bubble"];
@@ -158,7 +162,7 @@
       const loadedSave = loadSave();
 
       const game = {
-        state: STATE.START,
+        state: loadedSave.score >= CONFIG.FINAL_SCORE ? STATE.END : STATE.START,
         score: loadedSave.score,
         unlockedDinos: loadedSave.unlockedDinos,
         selectedDino: loadedSave.selectedDino,
@@ -171,7 +175,9 @@
         queuedShot: false,
         autoLaunchDelay: 0,
         pendingHatchDino: null,
+        pendingEnd: loadedSave.score >= CONFIG.FINAL_SCORE,
         hatch: null,
+        end: loadedSave.score >= CONFIG.FINAL_SCORE ? { time: 0 } : null,
         courtFlash: 0,
         shotCount: 0,
         nextShotKind: null,
@@ -606,6 +612,10 @@
       }
 
       function launchShot() {
+        if (game.score >= CONFIG.FINAL_SCORE) {
+          startEndCelebration();
+          return;
+        }
         const ball = game.ball;
         if (ball.state !== "ready") {
           game.queuedShot = true;
@@ -670,7 +680,6 @@
 
         game.unlockedDinos = earnedDinos;
         if (newlyUnlockedDino) {
-          game.selectedDino = newlyUnlockedDino;
           game.pendingHatchDino = newlyUnlockedDino;
         }
 
@@ -691,24 +700,79 @@
         game.state = STATE.HATCH;
         game.hatch = {
           time: 0,
+          revealTime: 0,
           duration: CONFIG.HATCH_SECONDS,
           dinoId,
-          taps: 0
+          taps: 0,
+          revealed: false
         };
         game.queuedShot = false;
         game.autoLaunchDelay = 0;
         game.ball.state = "ready";
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
-        spawnParticles(width * 0.5, height * 0.42, CONFIG.PARTICLE_COUNT + 18, dino.particles, "star");
-        playFanfare(dino);
+        spawnParticles(width * 0.5, height * 0.47, Math.floor(CONFIG.PARTICLE_COUNT * 0.45), dino.particles, "star");
       }
 
       function endHatch() {
+        if (game.hatch && game.hatch.dinoId) {
+          game.selectedDino = game.hatch.dinoId;
+          saveGame();
+        }
         game.state = STATE.PLAY;
         game.hatch = null;
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
+        resetReadyBall();
+        if (game.pendingEnd) startEndCelebration();
+      }
+
+      function startEndCelebration() {
+        const dino = getCurrentDino();
+        game.state = STATE.END;
+        game.end = { time: 0 };
+        game.pendingEnd = false;
+        game.pendingHatchDino = null;
+        game.hatch = null;
+        game.surprise = null;
+        game.dinoCelebration = null;
+        game.queuedShot = false;
+        game.autoLaunchDelay = 0;
+        game.ball.state = "ready";
+        game.dinoReact = 0.9;
+        game.dinoMood = "happy";
+        game.shakeLeft = Math.max(game.shakeLeft, CONFIG.SHAKE_MS / 1000);
+        const courtJuice = getCourtJuice();
+        spawnParticles(width * 0.5, height * 0.33, CONFIG.PARTICLE_COUNT + 42, courtJuice.palette, courtJuice.shape);
+        spawnParticles(width * 0.5, height * 0.42, CONFIG.PARTICLE_COUNT, dino.particles, "star");
+        playFanfare(dino);
+      }
+
+      function restartRound() {
+        const fresh = defaultSave();
+        game.score = fresh.score;
+        game.unlockedDinos = fresh.unlockedDinos.slice();
+        game.selectedDino = fresh.selectedDino;
+        game.court = fresh.court;
+        game.streak = 0;
+        game.pendingHatchDino = null;
+        game.pendingEnd = false;
+        game.hatch = null;
+        game.end = null;
+        game.courtFlash = 0;
+        game.shotCount = 0;
+        game.nextShotKind = null;
+        game.nextSurpriseAt = randomInt(CONFIG.SURPRISE_MIN_BASKETS, CONFIG.SURPRISE_MAX_BASKETS);
+        game.surprise = null;
+        game.dinoCelebration = null;
+        game.hoopSparkle = 0;
+        game.pickerBounce = 0;
+        game.queuedShot = false;
+        game.autoLaunchDelay = 0;
+        game.ball.state = "ready";
+        game.dinoReact = 0.4;
+        game.dinoMood = "happy";
+        saveGame();
         resetReadyBall();
       }
 
@@ -783,6 +847,10 @@
         ball.squeeze = 1;
         game.score += 1;
         game.streak += 1;
+        if (game.score >= CONFIG.FINAL_SCORE) {
+          game.pendingEnd = true;
+          game.queuedShot = false;
+        }
         game.shakeLeft = CONFIG.SHAKE_MS / 1000;
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
@@ -824,6 +892,10 @@
           const dinoId = game.pendingHatchDino;
           game.pendingHatchDino = null;
           startHatch(dinoId);
+          return;
+        }
+        if (game.pendingEnd || game.score >= CONFIG.FINAL_SCORE) {
+          startEndCelebration();
           return;
         }
         resetReadyBall();
@@ -958,7 +1030,13 @@
           updateBall(dt);
         } else if (game.state === STATE.HATCH && game.hatch) {
           game.hatch.time += dt;
-          if (game.hatch.time >= game.hatch.duration) endHatch();
+          if (game.hatch.revealed) game.hatch.revealTime += dt;
+        } else if (game.state === STATE.END && game.end) {
+          game.end.time += dt;
+          if (Math.random() < dt * 2.2) {
+            const juice = getCourtJuice();
+            spawnParticles(rand(width * 0.15, width * 0.85), rand(height * 0.12, height * 0.4), 3, juice.palette, juice.shape);
+          }
         }
       }
 
@@ -1567,6 +1645,48 @@
         ctx.restore();
       }
 
+      function drawOpenEggShell(x, y, size, dino, open) {
+        const lift = size * 0.1 * open;
+        const spread = size * 0.32 * open;
+        const rotate = 0.7 * open;
+        ctx.save();
+        ctx.fillStyle = dino.egg;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.18)";
+        ctx.lineWidth = Math.max(2, size * 0.03);
+
+        ctx.save();
+        ctx.translate(x - spread, y - lift);
+        ctx.rotate(-rotate);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.29, size * 0.36, -0.2, Math.PI * 0.55, Math.PI * 1.58);
+        ctx.lineTo(size * 0.09, size * 0.25);
+        ctx.lineTo(-size * 0.04, size * 0.16);
+        ctx.lineTo(size * 0.04, size * 0.06);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(x + spread, y - lift);
+        ctx.rotate(rotate);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.29, size * 0.36, 0.2, -Math.PI * 0.58, Math.PI * 0.45);
+        ctx.lineTo(-size * 0.09, size * 0.25);
+        ctx.lineTo(size * 0.04, size * 0.16);
+        ctx.lineTo(-size * 0.04, size * 0.06);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.ellipse(x, y + size * 0.24, size * 0.34, size * 0.16, 0, 0, TAU);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
       function getPlayControls(layout) {
         const size = clamp(layout.minSide * 0.13, 52, 68);
         const y = height - layout.safe.bottom - size * 0.68;
@@ -1745,6 +1865,37 @@
         ctx.fillText("Tap to play", width * 0.5, height - clamp(height * 0.16, 78, 130));
       }
 
+      function drawEnd(layout) {
+        const endTime = game.end ? game.end.time : 0;
+        drawBackground(layout);
+        drawHoopBack(layout);
+        drawDino(layout.dino.x, layout.dino.y, layout.dino.size * (1 + Math.sin(game.time * 7) * 0.035), "happy");
+        drawHoopFront(layout);
+        drawScore(layout);
+
+        ctx.save();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.52)";
+        ctx.fillRect(0, 0, width, height);
+        drawParticles();
+
+        const centerY = height * 0.38 + layout.safe.top * 0.2;
+        ctx.fillStyle = "#0f172a";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `900 ${clamp(layout.minSide * 0.13, 42, 68)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.fillText("You did it!", width * 0.5, centerY);
+        ctx.font = `900 ${clamp(layout.minSide * 0.1, 34, 56)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.fillText(`${CONFIG.FINAL_SCORE} baskets!`, width * 0.5, centerY + clamp(layout.minSide * 0.14, 52, 76));
+
+        const dinoSize = clamp(layout.minSide * 0.24, 88, 132);
+        drawDino(width * 0.5, height * 0.78, dinoSize * (1 + Math.sin(game.time * 4) * 0.04), "happy");
+
+        ctx.font = `800 ${clamp(layout.minSide * 0.06, 22, 32)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.globalAlpha = endTime >= CONFIG.END_RESTART_DELAY ? 1 : 0.35;
+        ctx.fillText("Tap to play again", width * 0.5, height - layout.safe.bottom - clamp(height * 0.1, 54, 86));
+        ctx.restore();
+      }
+
       function drawHoopSparkles(layout) {
         if (game.hoopSparkle <= 0) return;
         const hoop = layout.hoop;
@@ -1842,12 +1993,12 @@
       }
 
       function drawHatch(layout) {
-        const hatch = game.hatch || { time: 0, duration: CONFIG.HATCH_SECONDS, dinoId: game.selectedDino };
+        const hatch = game.hatch || { time: 0, revealTime: 0, duration: CONFIG.HATCH_SECONDS, dinoId: game.selectedDino, taps: 0, revealed: false };
         const dino = getDinoById(hatch.dinoId);
-        const tapProgress = clamp((hatch.taps || 0) / 3, 0, 1);
-        const progress = Math.max(clamp(hatch.time / hatch.duration, 0, 1), tapProgress * 0.86);
-        const crack = clamp((progress - 0.12) / 0.46, 0, 1);
-        const reveal = clamp((progress - 0.36) / 0.34, 0, 1);
+        const tapProgress = clamp((hatch.taps || 0) / CONFIG.HATCH_TAPS, 0, 1);
+        const idleWobble = Math.sin(game.time * 5) * (hatch.revealed ? 0 : 1);
+        const crack = hatch.revealed ? 1 : clamp((tapProgress - 0.05) / 0.8, 0, 0.96);
+        const reveal = hatch.revealed ? clamp(hatch.revealTime / CONFIG.HATCH_REVEAL_SECONDS, 0, 1) : 0;
         const eggSize = clamp(layout.minSide * 0.34, 116, 176);
         const centerX = width * 0.5;
         const eggY = height * 0.51;
@@ -1856,20 +2007,36 @@
         drawBackground(layout);
         ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
         ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.globalAlpha = 0.2 + reveal * 0.28;
+        ctx.fillStyle = "#fef9c3";
+        ctx.beginPath();
+        ctx.ellipse(centerX, eggY + eggSize * 0.06, eggSize * (0.55 + reveal * 0.35), eggSize * (0.48 + reveal * 0.26), 0, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+
         drawParticles();
 
         ctx.save();
         ctx.globalAlpha = reveal;
-        drawDinoForDino(dino, centerX, eggY + eggSize * 0.74 - reveal * eggSize * 0.32, dinoSize, "happy");
+        ctx.translate(centerX, eggY + eggSize * 0.74 - reveal * eggSize * 0.44);
+        ctx.scale(0.72 + reveal * 0.28, 0.72 + reveal * 0.28);
+        drawDinoForDino(dino, 0, 0, dinoSize, "happy");
         ctx.restore();
 
-        if (progress < 0.86) drawEgg(centerX, eggY + Math.sin(game.time * 8) * crack * 6, eggSize, dino, crack);
+        if (hatch.revealed) {
+          drawOpenEggShell(centerX, eggY + eggSize * 0.18, eggSize, dino, reveal);
+        } else {
+          drawEgg(centerX, eggY + idleWobble * (3 + crack * 6), eggSize, dino, crack);
+        }
 
         ctx.fillStyle = "#0f172a";
         ctx.font = `900 ${clamp(layout.minSide * 0.095, 32, 54)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(reveal > 0.7 ? "New dino!" : "Tap egg!", width * 0.5, layout.safe.top + clamp(height * 0.15, 84, 130));
+        const message = hatch.revealed && reveal > 0.72 ? "New dino!" : "Tap egg!";
+        ctx.fillText(message, width * 0.5, layout.safe.top + clamp(height * 0.15, 84, 130));
       }
 
       function drawPicker(layout) {
@@ -2009,6 +2176,7 @@
         else if (game.state === STATE.HATCH) drawHatch(layout);
         else if (game.state === STATE.PICKER) drawPicker(layout);
         else if (game.state === STATE.STICKERS) drawStickerBook(layout);
+        else if (game.state === STATE.END) drawEnd(layout);
         else drawPlay(layout);
 
         ctx.restore();
@@ -2103,18 +2271,58 @@
         }
       }
 
+      function revealHatchDino() {
+        if (!game.hatch || game.hatch.revealed) return;
+        const dino = getDinoById(game.hatch.dinoId);
+        game.hatch.revealed = true;
+        game.hatch.revealTime = 0;
+        game.hatch.taps = CONFIG.HATCH_TAPS;
+        game.selectedDino = dino.id;
+        game.dinoReact = 0.8;
+        game.dinoMood = "happy";
+        game.shakeLeft = Math.max(game.shakeLeft, CONFIG.SHAKE_MS / 1000);
+        spawnParticles(width * 0.5, height * 0.43, CONFIG.PARTICLE_COUNT + 48, dino.particles, "star");
+        playFanfare(dino);
+        saveGame();
+      }
+
       function handleHatchTap(point) {
         if (!game.hatch) return;
+        if (game.hatch.revealed) {
+          if (game.hatch.revealTime >= CONFIG.END_RESTART_DELAY) {
+            endHatch();
+          } else {
+            const dino = getDinoById(game.hatch.dinoId);
+            spawnParticles(point.x, point.y, 8, dino.particles, "star");
+            playTap();
+          }
+          return;
+        }
+
         game.hatch.taps += 1;
         const dino = getDinoById(game.hatch.dinoId);
         const layout = getLayout();
-        const crackProgress = clamp(game.hatch.taps / 3, 0, 1);
-        spawnParticles(width * 0.5, height * 0.5, 12 + game.hatch.taps * 4, dino.particles, "star");
-        game.hatch.time = Math.max(game.hatch.time, game.hatch.duration * (0.18 + crackProgress * 0.58));
+        const crackProgress = clamp(game.hatch.taps / CONFIG.HATCH_TAPS, 0, 1);
+        spawnParticles(width * 0.5, height * 0.5, 14 + game.hatch.taps * 5, dino.particles, "star");
+        game.shakeLeft = Math.max(game.shakeLeft, 0.04 + crackProgress * 0.1);
         playTap();
-        if (game.hatch.taps >= 3 && game.hatch.time > game.hatch.duration * 0.72) {
+        if (game.hatch.taps >= CONFIG.HATCH_TAPS) {
+          revealHatchDino();
+        } else if (game.hatch.taps >= CONFIG.HATCH_TAPS - 1) {
           spawnParticles(layout.dino.x, height * 0.45, CONFIG.PARTICLE_COUNT, dino.particles, "star");
         }
+      }
+
+      function handleEndTap() {
+        if (!game.end || game.end.time < CONFIG.END_RESTART_DELAY) {
+          const dino = getCurrentDino();
+          spawnParticles(width * 0.5, height * 0.36, 12, dino.particles, "star");
+          playTap();
+          return;
+        }
+        restartRound();
+        game.state = STATE.START;
+        playTap();
       }
 
       function handleTap(event) {
@@ -2126,6 +2334,10 @@
 
         ensureAudio();
         if (game.state === STATE.START) {
+          if (game.score >= CONFIG.FINAL_SCORE) {
+            startEndCelebration();
+            return;
+          }
           game.state = STATE.PLAY;
           game.dinoReact = 0.4;
           game.dinoMood = "happy";
@@ -2136,7 +2348,11 @@
 
         if (game.state === STATE.HATCH) {
           handleHatchTap(point);
-          if (game.hatch && game.hatch.taps >= 3 && game.hatch.time > game.hatch.duration * 0.82) endHatch();
+          return;
+        }
+
+        if (game.state === STATE.END) {
+          handleEndTap();
           return;
         }
 
@@ -2151,6 +2367,10 @@
         }
 
         if (handlePlayControlTap(point)) return;
+        if (game.score >= CONFIG.FINAL_SCORE) {
+          startEndCelebration();
+          return;
+        }
         launchShot();
       }
 

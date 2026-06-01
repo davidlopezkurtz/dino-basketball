@@ -1,5 +1,5 @@
 window.DINO_ASSETS = {
-  version: "2026-06-01-power-scenes",
+  version: "2026-06-01-polished-courts",
   images: {
     "background.landscape": {
       src: "assets/images/backgrounds/court-landscape.webp",
@@ -84,6 +84,114 @@ window.DINO_ASSETS = {
     },
     "background.space.portrait": {
       src: "assets/images/backgrounds/space-portrait.webp",
+      kind: "background",
+      width: 900,
+      height: 1600,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.ice.landscape": {
+      src: "assets/images/backgrounds/ice-landscape.webp",
+      kind: "background",
+      width: 1600,
+      height: 900,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.ice.portrait": {
+      src: "assets/images/backgrounds/ice-portrait.webp",
+      kind: "background",
+      width: 900,
+      height: 1600,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.desert.landscape": {
+      src: "assets/images/backgrounds/desert-landscape.webp",
+      kind: "background",
+      width: 1600,
+      height: 900,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.desert.portrait": {
+      src: "assets/images/backgrounds/desert-portrait.webp",
+      kind: "background",
+      width: 900,
+      height: 1600,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.candy.landscape": {
+      src: "assets/images/backgrounds/candy-landscape.webp",
+      kind: "background",
+      width: 1600,
+      height: 900,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.candy.portrait": {
+      src: "assets/images/backgrounds/candy-portrait.webp",
+      kind: "background",
+      width: 900,
+      height: 1600,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.city.landscape": {
+      src: "assets/images/backgrounds/city-landscape.webp",
+      kind: "background",
+      width: 1600,
+      height: 900,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.city.portrait": {
+      src: "assets/images/backgrounds/city-portrait.webp",
+      kind: "background",
+      width: 900,
+      height: 1600,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.moon.landscape": {
+      src: "assets/images/backgrounds/moon-landscape.webp",
+      kind: "background",
+      width: 1600,
+      height: 900,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.moon.portrait": {
+      src: "assets/images/backgrounds/moon-portrait.webp",
+      kind: "background",
+      width: 900,
+      height: 1600,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.rainbow.landscape": {
+      src: "assets/images/backgrounds/rainbow-landscape.webp",
+      kind: "background",
+      width: 1600,
+      height: 900,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      logicalWidth: "cover"
+    },
+    "background.rainbow.portrait": {
+      src: "assets/images/backgrounds/rainbow-portrait.webp",
       kind: "background",
       width: 900,
       height: 1600,

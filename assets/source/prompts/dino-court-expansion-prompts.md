@@ -109,6 +109,46 @@ Constraints: background must be one uniform #00ff00 color with no shadows, gradi
 
 For all court backgrounds: no characters, no dinosaurs, no hoop, no basketball, no text, no watermark. Keep the lower 35% as a readable flat basketball court/play surface with clean painted court lines and no freestanding objects in the center play lane. Keep decorative elements at far edges or behind the court. Use clean silhouettes, rounded shapes, saturated but balanced colors, and phone-readable details.
 
+## Polished Adventure Court Replacements
+
+Generated with the built-in image generation tool on June 1, 2026 to replace the procedural `ice`, `desert`, `candy`, `city`, `moon`, and `rainbow` court art.
+
+### Ice Court
+
+Landscape: create a polished 16:9 cartoon ice glacier basketball court background matching the quality and style of the existing jungle, beach, volcano, and space backgrounds. Use a bright friendly arctic glacier valley with rounded blue ice cliffs, sparkling snowbanks, soft snowy mountains, pale winter sky, warm sunlight, and a cheerful preschool sports-game atmosphere.
+
+Portrait: create a polished 9:16 cartoon ice glacier basketball court background with the same scene and constraints.
+
+### Desert Court
+
+Landscape: create a polished 16:9 cartoon desert canyon basketball court background with cheerful red-rock canyon mesas, warm golden sky, distant layered cliffs, and a few friendly cacti and desert flowers placed at far edges.
+
+Portrait: create a polished 9:16 cartoon desert canyon basketball court background with the same scene and constraints.
+
+### Candy Court
+
+Landscape: create a polished 16:9 cartoon candy-land basketball court background with rounded gumdrop hills, pastel candy trees, soft cotton-candy clouds, chocolate path details, and sprinkle accents only at edges. Avoid cheap simple shapes or oversized candy blocking gameplay.
+
+Portrait: create a polished 9:16 cartoon candy-land basketball court background with the same scene and constraints.
+
+### City Court
+
+Landscape: create a polished 16:9 cartoon city basketball court background with a cheerful dinosaur-town rooftop or schoolyard court, rounded colorful buildings in the distance, soft trees, textless banners, warm afternoon light, and a playful skyline.
+
+Portrait: create a polished 9:16 cartoon city basketball court background with the same scene and constraints.
+
+### Moon Court
+
+Landscape: create a polished 16:9 cartoon moon basketball court background that feels distinct from the space level: friendly lunar surface, rounded moon rocks at far edges, Earth or a colorful planet low on the horizon, soft star field, gentle nebula glow, and small cute moon-base domes and antennas far behind the court.
+
+Portrait: create a polished 9:16 cartoon moon basketball court background with the same scene and constraints.
+
+### Rainbow Court
+
+Landscape: create a polished 16:9 cartoon rainbow sky-island basketball court background with a floating sky island court above soft clouds, distant rounded islands, pastel rainbow arcs behind the court, balloons and streamers only at far edges, and bright blue sky.
+
+Portrait: create a polished 9:16 cartoon rainbow sky-island basketball court background with the same scene and constraints.
+
 ## Jungle River Court
 
 Landscape: create a polished 16:9 cartoon jungle river basketball court background that matches a bright preschool sports-cartoon game. The scene is a lush jungle clearing with a gentle blue-green river beyond the court, rounded tropical leaves and soft trees at the edges, warm daylight, and a cheerful atmosphere.

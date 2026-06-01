@@ -1,6 +1,6 @@
 # Next Graphics Roadmap
 
-The current game now has complete first-pass runtime art for 10 dino sprite sets and four court IDs. The next graphics pass should create six more court background pairs and add supporting variants that map directly to a 10-level progression.
+The current game now has complete first-pass runtime art for 10 dino sprite sets and 10 court IDs. The next graphics pass should refine supporting variants that map directly to the 10-level progression.
 
 ## Dino Asset Sets
 
@@ -29,12 +29,12 @@ Refine portrait and landscape backgrounds for each court ID:
 - `space`: moon court with stars, planets, and soft low-gravity visual motifs.
 - `ice`: snowy glacier court with blue ice cliffs and warm readable court markings.
 - `desert`: canyon court with red rocks, mesas, and sunlit sand kept outside the play lane.
-- `swamp`: fern-and-cypress court with shallow water behind the playable surface.
-- `crystal`: glowing cave court with colorful crystals around the edges.
+- `candy`: candy-land court with gumdrop hills and decorative sweets outside the play lane.
 - `city`: playful rooftop or schoolyard court with dinosaur-town shapes in the distance.
+- `moon`: lunar base court with rounded rocks, stars, and sci-fi props kept behind the court.
 - `rainbow`: sky-island court with clouds, balloons, and soft rainbow lighting.
 
-The first four environments have first-pass background pairs. The six new environments should follow the same rule: keep the lower third readable for ground/court action and leave enough open sky or backdrop space for the hoop arc.
+All 10 environments now have first-pass background pairs. Future revisions should keep the lower third readable for ground/court action and leave enough open sky or backdrop space for the hoop arc.
 
 ## 10-Level Pairing
 
@@ -42,12 +42,12 @@ The first four environments have first-pass background pairs. The six new enviro
 - Level 2: `trike` on `beach`.
 - Level 3: `stego` on `volcano`.
 - Level 4: `ptero` on `space`.
-- Level 5: `velociraptor` on `desert`.
-- Level 6: `spinosaurus` on `swamp`.
-- Level 7: `pachycephalosaurus` on `ice`.
-- Level 8: `ankylosaurus` on `crystal`.
-- Level 9: `parasaurolophus` on `city`.
-- Level 10: `brachiosaurus` on `rainbow`.
+- Level 5: `velociraptor` on `ice`.
+- Level 6: `spinosaurus` on `desert`.
+- Level 7: `pachycephalosaurus` on `candy`.
+- Level 8: `ankylosaurus` on `city`.
+- Level 9: `brachiosaurus` on `moon`.
+- Level 10: `parasaurolophus` on `rainbow`.
 
 ## Supporting Props
 

@@ -1,5 +1,5 @@
 window.DINO_ASSETS = {
-  version: "2026-06-01-100-adventure",
+  version: "2026-06-01-power-scenes",
   images: {
     "background.landscape": {
       src: "assets/images/backgrounds/court-landscape.webp",

@@ -10,9 +10,10 @@ This repository currently contains the 100-basket adventure build:
 - Confetti, screen shake, squash and stretch, and Web Audio sounds
 - Score persistence with defensive versioned `localStorage` loading
 - Ten unlockable dinos with tap-gated hatch celebrations
+- Dino names appear and are spoken when supported during the hatch reveal
 - Ten courts that unlock every 10 baskets through play
 - Tap-only dino picker with locked dinos shown as eggs
-- A large bottom-right dino power button that charges every 3 made baskets
+- A large bottom-right dino power button that charges every 3 made baskets and moves the dino during power shots
 - Automatic special shots including rainbow, moon, bank, dunk, star, and bubble variants
 - Court-specific celebration particles for jungle, beach, volcano, space, ice, desert, candy, city, moon, and rainbow
 - Session-only surprise moments such as crown, parade, hoop sparkles, and confetti rain
@@ -30,7 +31,7 @@ Open `index.html` in a browser. For phone testing, serve the folder with any sim
 
 Runtime art lives under `assets/images` and is registered by `assets/manifest.js`, which exposes `window.DINO_ASSETS` without using `fetch()`. Source generations and reusable prompts are kept under `assets/source`.
 
-The game still keeps procedural drawing fallbacks for the background, dino, hoop, ball, and score badge, so a missing image should not produce a blank canvas. The six expanded court backgrounds can be added later with `background.<court>.portrait` and `background.<court>.landscape` manifest keys.
+The game still keeps procedural drawing fallbacks for the background, dino, hoop, ball, and score badge, so a missing image should not produce a blank canvas. The six expanded courts have distinct procedural scene fallbacks and can later be replaced with `background.<court>.portrait` and `background.<court>.landscape` manifest keys.
 
 ## Deploy to GitHub Pages
 

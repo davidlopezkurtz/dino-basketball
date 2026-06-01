@@ -132,3 +132,34 @@ Portrait: create a polished 9:16 cartoon volcano basketball court background tha
 Landscape: create a polished 16:9 cartoon outer-space basketball court background that matches a bright preschool sports-cartoon game. The scene is a friendly space environment with a glowing planet horizon, soft nebula colors, rounded moon rocks at far edges, tiny stars, and playful sci-fi court lighting.
 
 Portrait: create a polished 9:16 cartoon outer-space basketball court background that matches a bright preschool sports-cartoon game. The scene is a friendly space environment with a glowing planet horizon, soft nebula colors, rounded moon rocks at far edges, tiny stars, and playful sci-fi court lighting.
+
+## Revised Level Background Brief
+
+Use these prompts for the next image-agent pass if the generated courts read as only color washes. The goal is a clearly different place at phone size, not a subtle palette swap.
+
+Shared requirements for every background:
+- Asset sizes: landscape 1600x900 and portrait 900x1600.
+- No dinosaur, no hoop, no basketball, no text, no watermark.
+- The lower 35% must be a clear playable basketball court surface with visible court lines.
+- Keep the right upper play lane open for the hoop and keep the lower-left area open for the dino.
+- Put theme objects at the edges, horizon, or far background, not in the active shooting lane.
+- Use big readable silhouettes and a few strong theme signals. Avoid tiny decorative clutter.
+- Bright preschool game style, rounded shapes, clean cel-shaded look, soft lighting, friendly and non-scary.
+
+Ice Court:
+Create a frozen lake basketball court in a snowy mountain valley. Use bright icy blue court material, crisp white court lines, chunky snow banks at the edges, large blue ice crystals at the far sides, rounded snowy mountains in the background, and visible falling snowflakes. The scene must immediately read as ice and snow.
+
+Desert Court:
+Create a warm desert basketball court on packed golden sand. Use large rolling dunes, a friendly sun, two big cactus silhouettes at far left and far right, small desert rocks near the edges, and orange-gold court markings. The scene must immediately read as desert.
+
+Candy Court:
+Create a candy-land basketball court with a pink taffy court surface, white icing court lines, oversized lollipop trees at the far edges, gumdrop hills in the background, and peppermint stripe accents. The center play lane must stay open and readable. The scene must immediately read as candy world.
+
+City Court:
+Create a rooftop city basketball court with a slate-blue court surface, white court lines, rounded skyline buildings in the background, glowing square windows, railings at the far edges, and a bright daytime sky. The scene must immediately read as city rooftop.
+
+Moon Court:
+Create a moon basketball court with a soft gray cratered court surface, white court lines, large craters near the far edges, a big planet visible in the sky, small stars, and rounded moon rocks outside the play lane. The scene must immediately read as moon.
+
+Rainbow Court:
+Create a rainbow sky basketball court with a bright green court surface, white court lines, huge rainbow arcs across the sky, fluffy clouds at both sides, and colorful confetti-like shapes near the horizon. The scene must immediately read as rainbow world.

@@ -44,7 +44,7 @@
 <body>
   <canvas id="game" aria-label="Dino Basketball game"></canvas>
 
-  <script src="assets/manifest.js?v=20260601-ten-dinos"></script>
+  <script src="assets/manifest.js?v=20260601-power-scenes"></script>
   <script>
     (() => {
       "use strict";
@@ -73,7 +73,8 @@
         END_RESTART_DELAY: 0.8,
         POWER_CHARGE_MAKES: 3,
         POWER_BUTTON_BOUNCE_MS: 260,
-        PARENT_HOLD_SECONDS: 3
+        PARENT_HOLD_SECONDS: 3,
+        POWER_MOVE_SECONDS: 1.15
       };
 
       const canvas = document.getElementById("game");
@@ -88,6 +89,7 @@
       const DINOS = [
         {
           id: "trex",
+          name: "T-Rex",
           unlockAt: 0,
           hue: 0,
           saturation: 1,
@@ -104,6 +106,7 @@
         },
         {
           id: "trike",
+          name: "Triceratops",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[0],
           hue: 155,
           saturation: 1.12,
@@ -120,6 +123,7 @@
         },
         {
           id: "stego",
+          name: "Stegosaurus",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[1],
           hue: 285,
           saturation: 1.05,
@@ -136,6 +140,7 @@
         },
         {
           id: "ptero",
+          name: "Pterodactyl",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[2],
           hue: 225,
           saturation: 1.08,
@@ -152,6 +157,7 @@
         },
         {
           id: "velociraptor",
+          name: "Velociraptor",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[3],
           hue: 55,
           saturation: 1.1,
@@ -168,6 +174,7 @@
         },
         {
           id: "spinosaurus",
+          name: "Spinosaurus",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[4],
           hue: 185,
           saturation: 1.08,
@@ -184,6 +191,7 @@
         },
         {
           id: "pachycephalosaurus",
+          name: "Pachycephalosaurus",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[5],
           hue: 25,
           saturation: 1.08,
@@ -200,6 +208,7 @@
         },
         {
           id: "ankylosaurus",
+          name: "Ankylosaurus",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[6],
           hue: 110,
           saturation: 0.96,
@@ -216,6 +225,7 @@
         },
         {
           id: "brachiosaurus",
+          name: "Brachiosaurus",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[7],
           hue: 135,
           saturation: 1.04,
@@ -232,6 +242,7 @@
         },
         {
           id: "parasaurolophus",
+          name: "Parasaurolophus",
           unlockAt: CONFIG.UNLOCK_THRESHOLDS[8],
           hue: 315,
           saturation: 1.08,
@@ -302,6 +313,7 @@
         powerMeter: 0,
         powerBounce: 0,
         powerFlash: 0,
+        powerMove: null,
         resetHold: null,
         hatch: null,
         end: loadedSave.score >= CONFIG.FINAL_SCORE && !loadedSave.finaleSeen ? { time: 0 } : null,
@@ -356,6 +368,11 @@
 
       function pick(list) {
         return list[Math.floor(Math.random() * list.length)];
+      }
+
+      function easeOutCubic(t) {
+        const n = clamp(t, 0, 1);
+        return 1 - Math.pow(1 - n, 3);
       }
 
       function defaultSave() {
@@ -728,6 +745,20 @@
         window.setTimeout(() => playDinoCheer(dino), 520);
       }
 
+      function speakDinoName(dino) {
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+        try {
+          const utterance = new SpeechSynthesisUtterance(dino.name || dino.id);
+          utterance.rate = 0.86;
+          utterance.pitch = 1.25;
+          utterance.volume = 0.78;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+        } catch (error) {
+          // Speech support varies by browser. The visual name reveal remains the fallback.
+        }
+      }
+
       function getCourtJuice(courtId = game.court) {
         if (courtId === "beach") {
           return { palette: ["#38bdf8", "#fef3c7", "#fb7185", "#facc15"], shape: "shell" };
@@ -864,6 +895,15 @@
         return profile;
       }
 
+      function startPowerMove(dino) {
+        game.powerMove = {
+          type: dino.power,
+          dinoId: dino.id,
+          time: 0,
+          duration: CONFIG.POWER_MOVE_SECONDS
+        };
+      }
+
       function launchShot(options = {}) {
         if (game.score >= CONFIG.FINAL_SCORE && !game.finaleSeen) {
           startEndCelebration();
@@ -889,6 +929,7 @@
           game.powerCharge = 0;
           game.powerMeter = 0;
           game.powerFlash = 0;
+          startPowerMove(dino);
         }
 
         const layout = getLayout();
@@ -1018,6 +1059,7 @@
         game.hatch = null;
         game.surprise = null;
         game.dinoCelebration = null;
+        game.powerMove = null;
         game.queuedShot = false;
         game.queuedPower = false;
         game.autoLaunchDelay = 0;
@@ -1046,6 +1088,7 @@
         game.powerMeter = 0;
         game.powerBounce = 0;
         game.powerFlash = 0;
+        game.powerMove = null;
         game.resetHold = null;
         game.hatch = null;
         game.end = null;
@@ -1348,6 +1391,16 @@
         game.pickerBounce = Math.max(0, game.pickerBounce - dt);
         game.powerBounce = Math.max(0, game.powerBounce - dt);
         game.powerFlash = Math.max(0, game.powerFlash - dt);
+        if (game.powerMove) {
+          game.powerMove.time += dt;
+          if (Math.random() < dt * 9) {
+            const dino = getDinoById(game.powerMove.dinoId);
+            const layout = getLayout();
+            const motion = getPowerDinoMotion(layout);
+            spawnParticles(layout.dino.x + motion.dx, layout.dino.y + motion.dy - layout.dino.size * 0.72, 2, dino.powerPalette || dino.particles, dino.powerIcon === "splash" ? "shell" : dino.powerIcon === "pinball" ? "spark" : "star");
+          }
+          if (game.powerMove.time >= game.powerMove.duration) game.powerMove = null;
+        }
         if (game.resetHold && game.resetHold.active) {
           game.resetHold.time += dt;
           if (game.resetHold.time >= CONFIG.PARENT_HOLD_SECONDS) {
@@ -1567,20 +1620,183 @@
         }
       }
 
-      function drawBackground(layout) {
-        const court = getCurrentCourt();
-        const orientation = width >= height ? "landscape" : "portrait";
-        const courtAssetId = `background.${court.id}.${orientation}`;
-        if (drawCoverImage(courtAssetId)) return;
+      function drawCourtFloor(layout, color, lineColor) {
+        ctx.fillStyle = color;
+        ctx.fillRect(0, layout.groundY, width, height - layout.groundY);
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = Math.max(3, layout.minSide * 0.008);
+        ctx.beginPath();
+        ctx.moveTo(width * 0.08, layout.groundY + layout.minSide * 0.05);
+        ctx.lineTo(width * 0.92, layout.groundY + layout.minSide * 0.05);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(width * 0.52, layout.groundY + layout.minSide * 0.16, layout.minSide * 0.26, Math.PI, TAU);
+        ctx.stroke();
+      }
+
+      function drawAdventureCourtBackground(court, layout) {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+
+        if (court.id === "ice") {
+          sky.addColorStop(0, "#bae6fd");
+          sky.addColorStop(0.62, "#e0f2fe");
+          sky.addColorStop(1, "#f8fafc");
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, width, height);
+          drawCloud(width * 0.7, height * 0.13, layout.minSide * 0.07, 0.72);
+          ctx.fillStyle = "#ffffff";
+          for (let i = 0; i < 3; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(width * (0.12 + i * 0.24), layout.groundY);
+            ctx.lineTo(width * (0.27 + i * 0.18), layout.groundY - layout.minSide * (0.22 + i * 0.03));
+            ctx.lineTo(width * (0.44 + i * 0.19), layout.groundY);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.fillStyle = "#67e8f9";
+          for (let x = 28; x < width; x += 86) {
+            ctx.beginPath();
+            ctx.moveTo(x, layout.groundY - 18);
+            ctx.lineTo(x + 16, layout.groundY - 70);
+            ctx.lineTo(x + 32, layout.groundY - 18);
+            ctx.closePath();
+            ctx.fill();
+          }
+          drawCourtFloor(layout, "#dbeafe", "rgba(14, 165, 233, 0.55)");
+          return;
+        }
+
+        if (court.id === "desert") {
+          sky.addColorStop(0, "#fed7aa");
+          sky.addColorStop(0.62, "#fde68a");
+          sky.addColorStop(1, "#fef3c7");
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, width, height);
+          ctx.fillStyle = "#f59e0b";
+          ctx.beginPath();
+          ctx.arc(width * 0.14, height * 0.14, layout.minSide * 0.065, 0, TAU);
+          ctx.fill();
+          for (let i = 0; i < 4; i += 1) {
+            ctx.fillStyle = i % 2 ? "#fbbf24" : "#f59e0b";
+            ctx.beginPath();
+            ctx.ellipse(width * (0.1 + i * 0.28), layout.groundY - layout.minSide * 0.02, layout.minSide * 0.24, layout.minSide * 0.08, -0.08, 0, TAU);
+            ctx.fill();
+          }
+          ctx.strokeStyle = "#15803d";
+          ctx.lineWidth = 8;
+          ctx.lineCap = "round";
+          for (const x of [width * 0.1, width * 0.9]) {
+            ctx.beginPath();
+            ctx.moveTo(x, layout.groundY - 25);
+            ctx.lineTo(x, layout.groundY - 92);
+            ctx.moveTo(x, layout.groundY - 68);
+            ctx.lineTo(x + (x < width * 0.5 ? 24 : -24), layout.groundY - 88);
+            ctx.stroke();
+          }
+          drawCourtFloor(layout, "#fbbf24", "rgba(146, 64, 14, 0.48)");
+          return;
+        }
+
+        if (court.id === "candy") {
+          sky.addColorStop(0, "#fbcfe8");
+          sky.addColorStop(0.58, "#fdf2f8");
+          sky.addColorStop(1, "#fef3c7");
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, width, height);
+          drawCloud(width * 0.24, height * 0.14, layout.minSide * 0.075, 0.8);
+          drawCloud(width * 0.72, height * 0.2, layout.minSide * 0.07, 0.64);
+          ctx.fillStyle = "#f9a8d4";
+          for (let x = -30; x < width + 30; x += 95) {
+            ctx.beginPath();
+            ctx.arc(x, layout.groundY - 34, 24, 0, TAU);
+            ctx.fill();
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x, layout.groundY - 10);
+            ctx.lineTo(x, layout.groundY - 78);
+            ctx.stroke();
+          }
+          drawCourtFloor(layout, "#f9a8d4", "rgba(255, 255, 255, 0.75)");
+          ctx.fillStyle = "rgba(254, 240, 138, 0.72)";
+          for (let x = 24; x < width; x += 70) {
+            ctx.beginPath();
+            ctx.arc(x, layout.groundY + 26, 8, 0, TAU);
+            ctx.fill();
+          }
+          return;
+        }
+
+        if (court.id === "city") {
+          sky.addColorStop(0, "#bfdbfe");
+          sky.addColorStop(0.65, "#e0f2fe");
+          sky.addColorStop(1, "#f8fafc");
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, width, height);
+          for (let x = -12; x < width + 50; x += 48) {
+            const h = layout.minSide * (0.16 + ((x / 48) % 4) * 0.035);
+            fillRoundedRect(x, layout.groundY - h, 36, h, 4, x % 96 === 0 ? "#64748b" : "#475569");
+            ctx.fillStyle = "#fde68a";
+            for (let y = layout.groundY - h + 12; y < layout.groundY - 10; y += 22) {
+              ctx.fillRect(x + 8, y, 6, 8);
+              ctx.fillRect(x + 22, y, 6, 8);
+            }
+          }
+          drawCourtFloor(layout, "#94a3b8", "rgba(255, 255, 255, 0.62)");
+          return;
+        }
+
+        if (court.id === "moon") {
+          drawSpaceBackground(layout);
+          ctx.fillStyle = "#c7d2fe";
+          ctx.beginPath();
+          ctx.arc(width * 0.76, height * 0.16, layout.minSide * 0.07, 0, TAU);
+          ctx.fill();
+          ctx.fillStyle = "rgba(79, 70, 229, 0.38)";
+          for (let i = 0; i < 5; i += 1) {
+            ctx.beginPath();
+            ctx.arc(width * (0.18 + i * 0.16), layout.groundY - layout.minSide * 0.02, layout.minSide * (0.025 + (i % 2) * 0.012), 0, TAU);
+            ctx.fill();
+          }
+          drawCourtFloor(layout, "#a5b4fc", "rgba(255, 255, 255, 0.58)");
+          return;
+        }
+
+        if (court.id === "rainbow") {
+          sky.addColorStop(0, "#bae6fd");
+          sky.addColorStop(0.55, "#dcfce7");
+          sky.addColorStop(1, "#fef9c3");
+          ctx.fillStyle = sky;
+          ctx.fillRect(0, 0, width, height);
+          const bands = ["#fb7185", "#f97316", "#facc15", "#22c55e", "#60a5fa", "#a78bfa"];
+          for (let i = 0; i < bands.length; i += 1) {
+            ctx.strokeStyle = bands[i];
+            ctx.lineWidth = 12;
+            ctx.beginPath();
+            ctx.arc(width * 0.5, layout.groundY + layout.minSide * 0.18, layout.minSide * (0.58 + i * 0.055), Math.PI, TAU);
+            ctx.stroke();
+          }
+          drawCloud(width * 0.18, layout.groundY - layout.minSide * 0.17, layout.minSide * 0.08, 0.9);
+          drawCloud(width * 0.82, layout.groundY - layout.minSide * 0.16, layout.minSide * 0.08, 0.9);
+          drawCourtFloor(layout, "#86efac", "rgba(255, 255, 255, 0.7)");
+          return;
+        }
 
         if (court.id === "space") {
           drawSpaceBackground(layout);
           return;
         }
 
-        const assetId = `background.${orientation}`;
-        if (!drawCoverImage(assetId)) drawProceduralBackground(layout);
+        drawProceduralBackground(layout);
         drawCourtOverlay(court, layout);
+      }
+
+      function drawBackground(layout) {
+        const court = getCurrentCourt();
+        const orientation = width >= height ? "landscape" : "portrait";
+        const courtAssetId = `background.${court.id}.${orientation}`;
+        if (drawCoverImage(courtAssetId)) return;
+        drawAdventureCourtBackground(court, layout);
       }
 
       function drawCloud(x, y, size, alpha) {
@@ -1887,6 +2103,135 @@
 
       function drawDino(x, groundY, size, mood) {
         drawDinoForDino(getCurrentDino(), x, groundY, size, mood);
+      }
+
+      function getPowerDinoMotion(layout) {
+        if (!game.powerMove) return { dx: 0, dy: 0, scale: 1, rotation: 0 };
+        const move = game.powerMove;
+        const p = clamp(move.time / move.duration, 0, 1);
+        const hop = Math.sin(p * Math.PI);
+        const dash = Math.sin(p * Math.PI);
+        const forward = (layout.hoop.x - layout.dino.x) * 0.28;
+        const smallForward = (layout.hoop.x - layout.dino.x) * 0.14;
+        const motion = { dx: 0, dy: 0, scale: 1, rotation: 0 };
+
+        if (move.type === "stompDunk") {
+          motion.dx = forward * dash;
+          motion.dy = -layout.dino.size * 0.3 * hop;
+          motion.scale = 1 + 0.1 * hop;
+          motion.rotation = -0.08 * hop;
+        } else if (move.type === "tripleShot") {
+          motion.dx = smallForward * dash;
+          motion.dy = -layout.dino.size * 0.12 * Math.abs(Math.sin(p * Math.PI * 3));
+          motion.rotation = Math.sin(p * Math.PI * 6) * 0.035;
+        } else if (move.type === "starShield") {
+          motion.dy = -layout.dino.size * 0.08 * hop;
+          motion.scale = 1 + 0.16 * hop;
+          motion.rotation = Math.sin(p * Math.PI * 4) * 0.08;
+        } else if (move.type === "floatShot") {
+          motion.dx = layout.dino.size * 0.18 * hop;
+          motion.dy = -layout.dino.size * 0.85 * hop;
+          motion.rotation = -0.12 * hop;
+        } else if (move.type === "zoomShot") {
+          motion.dx = forward * 1.25 * dash;
+          motion.dy = -layout.dino.size * 0.08 * hop;
+          motion.scale = 1 + 0.08 * hop;
+          motion.rotation = -0.1 * hop;
+        } else if (move.type === "splashShot") {
+          motion.dx = smallForward * dash;
+          motion.dy = Math.sin(p * Math.PI * 2) * layout.dino.size * 0.08;
+          motion.rotation = Math.sin(p * Math.PI * 3) * 0.08;
+        } else if (move.type === "bounceShot") {
+          motion.dx = smallForward * dash;
+          motion.dy = -layout.dino.size * 0.45 * Math.sin(p * Math.PI * 1.4);
+          motion.scale = 1 + 0.12 * hop;
+          motion.rotation = 0.14 * hop;
+        } else if (move.type === "pinballRoll") {
+          motion.dx = smallForward * 0.9 * dash;
+          motion.dy = -layout.dino.size * 0.12 * Math.abs(Math.sin(p * Math.PI * 4));
+          motion.rotation = p * TAU * 1.25;
+        } else if (move.type === "skyLob") {
+          motion.dx = layout.dino.size * 0.12 * hop;
+          motion.dy = -layout.dino.size * 0.28 * hop;
+          motion.scale = 1 + 0.14 * hop;
+          motion.rotation = -0.06 * hop;
+        } else if (move.type === "musicEcho") {
+          motion.dx = layout.dino.size * 0.12 * Math.sin(p * Math.PI * 2);
+          motion.dy = -layout.dino.size * 0.2 * Math.abs(Math.sin(p * Math.PI * 3));
+          motion.scale = 1 + 0.08 * Math.abs(Math.sin(p * Math.PI * 3));
+          motion.rotation = Math.sin(p * Math.PI * 5) * 0.05;
+        }
+
+        if (p > 0.78) {
+          const settle = easeOutCubic((p - 0.78) / 0.22);
+          motion.dx *= 1 - settle;
+          motion.dy *= 1 - settle;
+          motion.rotation *= 1 - settle;
+          motion.scale = 1 + (motion.scale - 1) * (1 - settle);
+        }
+
+        return motion;
+      }
+
+      function drawPowerAura(layout, motion) {
+        if (!game.powerMove) return;
+        const dino = getDinoById(game.powerMove.dinoId);
+        const p = clamp(game.powerMove.time / game.powerMove.duration, 0, 1);
+        const pulse = Math.sin(p * Math.PI);
+        const x = layout.dino.x + motion.dx;
+        const y = layout.dino.y + motion.dy - layout.dino.size * 0.62;
+        const palette = dino.powerPalette || dino.particles;
+
+        ctx.save();
+        ctx.globalAlpha = 0.25 + 0.45 * pulse;
+        ctx.strokeStyle = palette[0] || "#fef08a";
+        ctx.fillStyle = palette[1] || "#ffffff";
+        ctx.lineWidth = Math.max(4, layout.dino.size * 0.05);
+        if (dino.power === "zoomShot") {
+          for (let i = 0; i < 4; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(x - layout.dino.size * (1.1 + i * 0.22), y + i * 8);
+            ctx.lineTo(x - layout.dino.size * (0.42 + i * 0.08), y + i * 8);
+            ctx.stroke();
+          }
+        } else if (dino.power === "splashShot") {
+          for (let i = 0; i < 3; i += 1) {
+            ctx.beginPath();
+            ctx.arc(x, y + layout.dino.size * 0.32, layout.dino.size * (0.35 + i * 0.16) * pulse, Math.PI, TAU);
+            ctx.stroke();
+          }
+        } else if (dino.power === "musicEcho") {
+          for (let i = 0; i < 3; i += 1) {
+            ctx.beginPath();
+            ctx.arc(x + i * layout.dino.size * 0.18, y - i * layout.dino.size * 0.12, layout.dino.size * 0.08, 0, TAU);
+            ctx.fill();
+          }
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, layout.dino.size * (0.48 + pulse * 0.38), 0, TAU);
+          ctx.stroke();
+          if (dino.power === "starShield" || dino.power === "skyLob") {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(game.time * 4);
+            drawStar(0, 0, layout.dino.size * 0.18, layout.dino.size * 0.4);
+            ctx.restore();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawDinoWithMotion(x, groundY, size, mood, motion) {
+        if (!motion || (!motion.dx && !motion.dy && motion.scale === 1 && !motion.rotation)) {
+          drawDino(x, groundY, size, mood);
+          return;
+        }
+        ctx.save();
+        ctx.translate(x + motion.dx, groundY + motion.dy);
+        ctx.rotate(motion.rotation);
+        ctx.scale(motion.scale, motion.scale);
+        drawDino(0, 0, size, mood);
+        ctx.restore();
       }
 
       function drawShotTrail(ball) {
@@ -2726,7 +3071,9 @@
       function drawPlay(layout) {
         drawBackground(layout);
         drawHoopBack(layout);
-        drawDino(layout.dino.x, layout.dino.y, layout.dino.size, game.dinoMood);
+        const dinoMotion = getPowerDinoMotion(layout);
+        drawPowerAura(layout, dinoMotion);
+        drawDinoWithMotion(layout.dino.x, layout.dino.y, layout.dino.size, game.dinoMood, dinoMotion);
         drawShotTrail(game.ball);
         drawCompanionBalls(game.ball);
         drawBall(game.ball, 1);
@@ -2780,11 +3127,24 @@
         }
 
         ctx.fillStyle = "#0f172a";
-        ctx.font = `900 ${clamp(layout.minSide * 0.095, 32, 54)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const message = hatch.revealed && reveal > 0.72 ? "New dino!" : "Tap egg!";
-        ctx.fillText(message, width * 0.5, layout.safe.top + clamp(height * 0.15, 84, 130));
+        const titleY = layout.safe.top + clamp(height * 0.14, 76, 118);
+        if (hatch.revealed && reveal > 0.72) {
+          const nameText = `${dino.name || dino.id}!`;
+          let fontSize = clamp(layout.minSide * 0.088, 28, 52);
+          ctx.font = `900 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+          while (ctx.measureText(nameText).width > width * 0.9 && fontSize > 20) {
+            fontSize -= 2;
+            ctx.font = `900 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+          }
+          ctx.fillText(nameText, width * 0.5, titleY);
+          ctx.font = `800 ${clamp(layout.minSide * 0.045, 18, 28)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+          ctx.fillText("New dino!", width * 0.5, titleY + fontSize * 0.8);
+        } else {
+          ctx.font = `900 ${clamp(layout.minSide * 0.095, 32, 54)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+          ctx.fillText("Tap egg!", width * 0.5, titleY);
+        }
       }
 
       function drawPicker(layout) {
@@ -3066,6 +3426,7 @@
         game.shakeLeft = Math.max(game.shakeLeft, CONFIG.SHAKE_MS / 1000);
         spawnParticles(width * 0.5, height * 0.43, CONFIG.PARTICLE_COUNT + 48, dino.particles, "star");
         playFanfare(dino);
+        speakDinoName(dino);
         saveGame();
       }
 

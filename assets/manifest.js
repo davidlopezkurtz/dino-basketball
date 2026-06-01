@@ -1,5 +1,5 @@
 window.DINO_ASSETS = {
-  version: "2026-05-29-dino-court-assets",
+  version: "2026-06-01-100-adventure",
   images: {
     "background.landscape": {
       src: "assets/images/backgrounds/court-landscape.webp",
@@ -234,6 +234,222 @@ window.DINO_ASSETS = {
       anchorX: 0.5,
       anchorY: 0.96,
       logicalWidthScale: 1.34
+    },
+    "dino.velociraptor.idle": {
+      src: "assets/images/characters/velociraptor/idle.png",
+      kind: "character",
+      width: 457,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.43
+    },
+    "dino.velociraptor.launch": {
+      src: "assets/images/characters/velociraptor/launch.png",
+      kind: "character",
+      width: 480,
+      height: 459,
+      anchorX: 0.48,
+      anchorY: 0.96,
+      logicalWidthScale: 1.48
+    },
+    "dino.velociraptor.happy": {
+      src: "assets/images/characters/velociraptor/happy.png",
+      kind: "character",
+      width: 467,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.43
+    },
+    "dino.velociraptor.shrug": {
+      src: "assets/images/characters/velociraptor/shrug.png",
+      kind: "character",
+      width: 453,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.42
+    },
+    "dino.spinosaurus.idle": {
+      src: "assets/images/characters/spinosaurus/idle.png",
+      kind: "character",
+      width: 480,
+      height: 428,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.58
+    },
+    "dino.spinosaurus.launch": {
+      src: "assets/images/characters/spinosaurus/launch.png",
+      kind: "character",
+      width: 480,
+      height: 448,
+      anchorX: 0.48,
+      anchorY: 0.96,
+      logicalWidthScale: 1.58
+    },
+    "dino.spinosaurus.happy": {
+      src: "assets/images/characters/spinosaurus/happy.png",
+      kind: "character",
+      width: 467,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.52
+    },
+    "dino.spinosaurus.shrug": {
+      src: "assets/images/characters/spinosaurus/shrug.png",
+      kind: "character",
+      width: 480,
+      height: 461,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.58
+    },
+    "dino.pachycephalosaurus.idle": {
+      src: "assets/images/characters/pachycephalosaurus/idle.png",
+      kind: "character",
+      width: 445,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.42
+    },
+    "dino.pachycephalosaurus.launch": {
+      src: "assets/images/characters/pachycephalosaurus/launch.png",
+      kind: "character",
+      width: 480,
+      height: 477,
+      anchorX: 0.48,
+      anchorY: 0.96,
+      logicalWidthScale: 1.5
+    },
+    "dino.pachycephalosaurus.happy": {
+      src: "assets/images/characters/pachycephalosaurus/happy.png",
+      kind: "character",
+      width: 427,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.42
+    },
+    "dino.pachycephalosaurus.shrug": {
+      src: "assets/images/characters/pachycephalosaurus/shrug.png",
+      kind: "character",
+      width: 439,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.42
+    },
+    "dino.ankylosaurus.idle": {
+      src: "assets/images/characters/ankylosaurus/idle.png",
+      kind: "character",
+      width: 480,
+      height: 358,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.7
+    },
+    "dino.ankylosaurus.launch": {
+      src: "assets/images/characters/ankylosaurus/launch.png",
+      kind: "character",
+      width: 480,
+      height: 392,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.7
+    },
+    "dino.ankylosaurus.happy": {
+      src: "assets/images/characters/ankylosaurus/happy.png",
+      kind: "character",
+      width: 480,
+      height: 408,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.68
+    },
+    "dino.ankylosaurus.shrug": {
+      src: "assets/images/characters/ankylosaurus/shrug.png",
+      kind: "character",
+      width: 480,
+      height: 358,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.7
+    },
+    "dino.parasaurolophus.idle": {
+      src: "assets/images/characters/parasaurolophus/idle.png",
+      kind: "character",
+      width: 427,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.42
+    },
+    "dino.parasaurolophus.launch": {
+      src: "assets/images/characters/parasaurolophus/launch.png",
+      kind: "character",
+      width: 480,
+      height: 465,
+      anchorX: 0.48,
+      anchorY: 0.96,
+      logicalWidthScale: 1.52
+    },
+    "dino.parasaurolophus.happy": {
+      src: "assets/images/characters/parasaurolophus/happy.png",
+      kind: "character",
+      width: 446,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.45
+    },
+    "dino.parasaurolophus.shrug": {
+      src: "assets/images/characters/parasaurolophus/shrug.png",
+      kind: "character",
+      width: 466,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.47
+    },
+    "dino.brachiosaurus.idle": {
+      src: "assets/images/characters/brachiosaurus/idle.png",
+      kind: "character",
+      width: 374,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.25
+    },
+    "dino.brachiosaurus.launch": {
+      src: "assets/images/characters/brachiosaurus/launch.png",
+      kind: "character",
+      width: 399,
+      height: 480,
+      anchorX: 0.48,
+      anchorY: 0.96,
+      logicalWidthScale: 1.28
+    },
+    "dino.brachiosaurus.happy": {
+      src: "assets/images/characters/brachiosaurus/happy.png",
+      kind: "character",
+      width: 372,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.25
+    },
+    "dino.brachiosaurus.shrug": {
+      src: "assets/images/characters/brachiosaurus/shrug.png",
+      kind: "character",
+      width: 382,
+      height: 480,
+      anchorX: 0.5,
+      anchorY: 0.96,
+      logicalWidthScale: 1.26
     },
     "prop.hoopBack": {
       src: "assets/images/props/hoop-back.png",

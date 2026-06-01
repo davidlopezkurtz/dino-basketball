@@ -2,6 +2,76 @@
 
 Generated with the built-in image generation tool on May 29, 2026.
 
+## Additional Dino Pose Sheets
+
+Generated with the built-in image generation tool on June 1, 2026.
+
+### Velociraptor Pose Sheet
+
+Use case: stylized-concept
+Asset type: transparent sprite sheet source for a mobile canvas game character
+Primary request: create a 2x2 sprite sheet of the same friendly velociraptor cartoon dinosaur in four poses for a preschool basketball game: top-left idle standing with small arms ready, top-right launching a shot with one arm extended upward, bottom-left celebrating happily with arms raised, bottom-right small shrug after a miss.
+Scene/backdrop: perfectly flat solid #ff00ff chroma-key background across the entire image for background removal.
+Subject: one cute rounded velociraptor, teal-blue body with cream belly and small amber feather crest, side-facing toward the right, no basketball, no clothes, same character proportions in every pose, feet near the bottom of each cell, agile narrow snout and long tail but soft preschool-friendly shapes. Critical species detail: each foot must have a clearly visible oversized curved cream sickle claw raised above the other toes, on the inner/top toe of both feet, like a classic velociraptor toe claw. The sickle claws must be readable at phone size in all four poses, distinct from the regular small toe claws, and not hidden by the legs.
+Style/medium: polished playful 2D game sprite, crisp clean edges, soft cel shading, readable silhouette, friendly facial expression, consistent with existing Dino Basketball sprites.
+Composition/framing: square image divided visually into four equal quadrants by spacing only, no grid lines, no labels, each pose centered in its quadrant with generous padding and the same ground/feet anchor height.
+Constraints: background must be one uniform #ff00ff color with no shadows, gradients, texture, floor plane, or lighting variation. Do not use #ff00ff anywhere in the dinosaur. No cast shadow, no contact shadow, no reflection, no text, no watermark, no ball, no hoop.
+
+### Spinosaurus Pose Sheet
+
+Use case: stylized-concept
+Asset type: transparent sprite sheet source for a mobile canvas game character
+Primary request: create a 2x2 sprite sheet of the same friendly spinosaurus cartoon dinosaur in four poses for a preschool basketball game: top-left idle standing with arms ready, top-right launching a shot with one arm extended upward, bottom-left celebrating happily with arms raised, bottom-right small shrug after a miss.
+Scene/backdrop: perfectly flat solid #ff00ff chroma-key background across the entire image for background removal.
+Subject: one cute rounded spinosaurus, coral-orange body with cream belly and a bright aqua-blue sail on its back, side-facing toward the right, no basketball, no clothes, same character proportions in every pose, feet near the bottom of each cell, long crocodile-like snout softened into friendly cartoon shapes.
+Style/medium: polished playful 2D game sprite, crisp clean edges, soft cel shading, readable silhouette, friendly facial expression, consistent with existing Dino Basketball sprites.
+Composition/framing: square image divided visually into four equal quadrants by spacing only, no grid lines, no labels, each pose centered in its quadrant with generous padding and the same ground/feet anchor height.
+Constraints: background must be one uniform #ff00ff color with no shadows, gradients, texture, floor plane, or lighting variation. Do not use #ff00ff anywhere in the dinosaur. No cast shadow, no contact shadow, no reflection, no text, no watermark, no ball, no hoop.
+
+### Pachycephalosaurus Pose Sheet
+
+Use case: stylized-concept
+Asset type: transparent sprite sheet source for a mobile canvas game character
+Primary request: create a 2x2 sprite sheet of the same friendly pachycephalosaurus cartoon dinosaur in four poses for a preschool basketball game: top-left idle standing with arms ready, top-right launching a shot with one arm extended upward, bottom-left celebrating happily with arms raised, bottom-right small shrug after a miss.
+Scene/backdrop: perfectly flat solid #ff00ff chroma-key background across the entire image for background removal.
+Subject: one cute rounded pachycephalosaurus, golden-yellow body with cream belly, warm orange spots, and a large rounded dome head, side-facing toward the right, no basketball, no clothes, same character proportions in every pose, feet near the bottom of each cell, small snout and sturdy friendly stance.
+Style/medium: polished playful 2D game sprite, crisp clean edges, soft cel shading, readable silhouette, friendly facial expression, consistent with existing Dino Basketball sprites.
+Composition/framing: square image divided visually into four equal quadrants by spacing only, no grid lines, no labels, each pose centered in its quadrant with generous padding and the same ground/feet anchor height.
+Constraints: background must be one uniform #ff00ff color with no shadows, gradients, texture, floor plane, or lighting variation. Do not use #ff00ff anywhere in the dinosaur. No cast shadow, no contact shadow, no reflection, no text, no watermark, no ball, no hoop.
+
+### Ankylosaurus Pose Sheet
+
+Use case: stylized-concept
+Asset type: transparent sprite sheet source for a mobile canvas game character
+Primary request: create a 2x2 sprite sheet of the same friendly ankylosaurus cartoon dinosaur in four poses for a preschool basketball game: top-left idle standing with tiny arms ready, top-right launching a shot with one tiny arm extended upward, bottom-left celebrating happily with tiny arms raised, bottom-right small shrug after a miss.
+Scene/backdrop: perfectly flat solid #ff00ff chroma-key background across the entire image for background removal.
+Subject: one cute rounded ankylosaurus, warm bronze-brown armored body with cream belly, tan shell plates, small blunt side spikes, very clear rounded club tail, low sturdy body, side-facing toward the right, no frill, no triceratops horns, no basketball, no clothes, same character proportions in every pose, feet near the bottom of each cell, friendly toy-like face.
+Style/medium: polished playful 2D game sprite, crisp clean edges, soft cel shading, readable silhouette, friendly facial expression, consistent with existing Dino Basketball sprites.
+Composition/framing: square image divided visually into four equal quadrants by spacing only, no grid lines, no labels, each pose centered in its quadrant with generous padding and the same ground/feet anchor height.
+Constraints: background must be one uniform #ff00ff color with no shadows, gradients, texture, floor plane, or lighting variation. Do not use #ff00ff anywhere in the dinosaur. No cast shadow, no contact shadow, no reflection, no text, no watermark, no ball, no hoop.
+
+### Parasaurolophus Pose Sheet
+
+Use case: stylized-concept
+Asset type: transparent sprite sheet source for a mobile canvas game character
+Primary request: create a 2x2 sprite sheet of the same friendly parasaurolophus cartoon dinosaur in four poses for a preschool basketball game: top-left idle standing with arms ready, top-right launching a shot with one arm extended upward, bottom-left celebrating happily with arms raised, bottom-right small shrug after a miss.
+Scene/backdrop: perfectly flat solid #ff00ff chroma-key background across the entire image for background removal.
+Subject: one cute rounded parasaurolophus, mint-green body with cream belly, coral-orange head crest/tube sweeping backward, small blue spots, side-facing toward the right, no basketball, no clothes, same character proportions in every pose, feet near the bottom of each cell. Critical species detail: the long backward head crest must be large and readable at phone size in all four poses, distinct from horns, plates, or a feather crest.
+Style/medium: polished playful 2D game sprite, crisp clean edges, soft cel shading, readable silhouette, friendly facial expression, consistent with existing Dino Basketball sprites.
+Composition/framing: square image divided visually into four equal quadrants by spacing only, no grid lines, no labels, each pose centered in its quadrant with generous padding and the same ground/feet anchor height.
+Constraints: background must be one uniform #ff00ff color with no shadows, gradients, texture, floor plane, or lighting variation. Do not use #ff00ff anywhere in the dinosaur. No cast shadow, no contact shadow, no reflection, no text, no watermark, no ball, no hoop.
+
+### Brachiosaurus Pose Sheet
+
+Use case: stylized-concept
+Asset type: transparent sprite sheet source for a mobile canvas game character
+Primary request: create a 2x2 sprite sheet of the same friendly brachiosaurus cartoon dinosaur in four poses for a preschool basketball game: top-left idle standing with tiny arms ready, top-right launching a shot with one tiny arm extended upward, bottom-left celebrating happily with tiny arms raised, bottom-right small shrug after a miss.
+Scene/backdrop: perfectly flat solid #ff00ff chroma-key background across the entire image for background removal.
+Subject: one cute rounded brachiosaurus, periwinkle-blue body with cream belly, lemon-yellow spots, very long upright neck, small friendly head, side-facing toward the right, no basketball, no clothes, same character proportions in every pose, feet near the bottom of each cell. Critical species detail: the tall long neck and small high head must be the dominant readable silhouette, while still fitting comfortably in each quadrant with generous padding.
+Style/medium: polished playful 2D game sprite, crisp clean edges, soft cel shading, readable silhouette, friendly facial expression, consistent with existing Dino Basketball sprites.
+Composition/framing: square image divided visually into four equal quadrants by spacing only, no grid lines, no labels, each pose centered in its quadrant with generous padding and the same ground/feet anchor height.
+Constraints: background must be one uniform #ff00ff color with no shadows, gradients, texture, floor plane, or lighting variation. Do not use #ff00ff anywhere in the dinosaur. No cast shadow, no contact shadow, no reflection, no text, no watermark, no ball, no hoop.
+
 ## Trike Pose Sheet
 
 Use case: stylized-concept

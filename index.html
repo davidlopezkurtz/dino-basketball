@@ -44,7 +44,7 @@
 <body>
   <canvas id="game" aria-label="Dino Basketball game"></canvas>
 
-  <script src="assets/manifest.js?v=20260529-dino-court-assets"></script>
+  <script src="assets/manifest.js?v=20260601-ten-dinos"></script>
   <script>
     (() => {
       "use strict";
@@ -59,18 +59,21 @@
         SHAKE_MS: 190,
         SHAKE_INTENSITY: 7,
         PARTICLE_COUNT: 42,
-        UNLOCK_THRESHOLDS: [5, 15, 30],
-        COURT_INTERVAL: 12,
+        UNLOCK_THRESHOLDS: [5, 15, 25, 35, 45, 55, 65, 75, 85],
+        COURT_INTERVAL: 10,
         MAKE_RATE: 0.9,
         HATCH_SECONDS: 3.3,
         COURT_FLASH_SECONDS: 1.4,
         SPECIAL_SHOT_INTERVAL: 4,
         SURPRISE_MIN_BASKETS: 5,
         SURPRISE_MAX_BASKETS: 8,
-        FINAL_SCORE: 50,
+        FINAL_SCORE: 100,
         HATCH_TAPS: 4,
         HATCH_REVEAL_SECONDS: 0.7,
-        END_RESTART_DELAY: 0.8
+        END_RESTART_DELAY: 0.8,
+        POWER_CHARGE_MAKES: 3,
+        POWER_BUTTON_BOUNCE_MS: 260,
+        PARENT_HOLD_SECONDS: 3
       };
 
       const canvas = document.getElementById("game");
@@ -81,7 +84,7 @@
       const SPECIAL_SHOTS = ["rainbow", "bank", "moon", "dunk", "star", "bubble"];
       const SURPRISE_TYPES = ["crown", "parade", "sparkleHoop", "confettiRain", "starBall"];
       const SAVE_KEY = "dinoBasketballSave";
-      const SAVE_VERSION = 1;
+      const SAVE_VERSION = 2;
       const DINOS = [
         {
           id: "trex",
@@ -93,6 +96,9 @@
           dark: "#15803d",
           egg: "#bbf7d0",
           accessory: "tail",
+          power: "stompDunk",
+          powerIcon: "stomp",
+          powerPalette: ["#fef08a", "#86efac", "#f97316", "#38bdf8"],
           fanfare: 1,
           particles: ["#fef08a", "#86efac", "#f97316", "#38bdf8"]
         },
@@ -106,6 +112,9 @@
           dark: "#0369a1",
           egg: "#bae6fd",
           accessory: "horns",
+          power: "tripleShot",
+          powerIcon: "triple",
+          powerPalette: ["#7dd3fc", "#fde68a", "#f0abfc", "#a7f3d0"],
           fanfare: 1.12,
           particles: ["#7dd3fc", "#fde68a", "#f0abfc", "#a7f3d0"]
         },
@@ -119,6 +128,9 @@
           dark: "#be185d",
           egg: "#fbcfe8",
           accessory: "plates",
+          power: "starShield",
+          powerIcon: "star",
+          powerPalette: ["#f9a8d4", "#fef3c7", "#fb923c", "#c4b5fd"],
           fanfare: 0.88,
           particles: ["#f9a8d4", "#fef3c7", "#fb923c", "#c4b5fd"]
         },
@@ -132,15 +144,120 @@
           dark: "#6d28d9",
           egg: "#ddd6fe",
           accessory: "wings",
+          power: "floatShot",
+          powerIcon: "feather",
+          powerPalette: ["#c4b5fd", "#93c5fd", "#fef08a", "#f0abfc"],
           fanfare: 1.25,
           particles: ["#c4b5fd", "#93c5fd", "#fef08a", "#f0abfc"]
+        },
+        {
+          id: "velociraptor",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[3],
+          hue: 55,
+          saturation: 1.1,
+          body: "#facc15",
+          belly: "#fef9c3",
+          dark: "#a16207",
+          egg: "#fde68a",
+          accessory: "runner",
+          power: "zoomShot",
+          powerIcon: "zoom",
+          powerPalette: ["#fef08a", "#fb923c", "#60a5fa", "#ffffff"],
+          fanfare: 1.36,
+          particles: ["#fef08a", "#fb923c", "#60a5fa", "#ffffff"]
+        },
+        {
+          id: "spinosaurus",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[4],
+          hue: 185,
+          saturation: 1.08,
+          body: "#14b8a6",
+          belly: "#ccfbf1",
+          dark: "#0f766e",
+          egg: "#99f6e4",
+          accessory: "sail",
+          power: "splashShot",
+          powerIcon: "splash",
+          powerPalette: ["#67e8f9", "#38bdf8", "#99f6e4", "#ffffff"],
+          fanfare: 0.95,
+          particles: ["#67e8f9", "#38bdf8", "#99f6e4", "#ffffff"]
+        },
+        {
+          id: "pachycephalosaurus",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[5],
+          hue: 25,
+          saturation: 1.08,
+          body: "#fb923c",
+          belly: "#ffedd5",
+          dark: "#c2410c",
+          egg: "#fed7aa",
+          accessory: "dome",
+          power: "bounceShot",
+          powerIcon: "bounce",
+          powerPalette: ["#fb923c", "#fef08a", "#fed7aa", "#f97316"],
+          fanfare: 1.05,
+          particles: ["#fb923c", "#fef08a", "#fed7aa", "#f97316"]
+        },
+        {
+          id: "ankylosaurus",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[6],
+          hue: 110,
+          saturation: 0.96,
+          body: "#84cc16",
+          belly: "#ecfccb",
+          dark: "#4d7c0f",
+          egg: "#d9f99d",
+          accessory: "club",
+          power: "pinballRoll",
+          powerIcon: "pinball",
+          powerPalette: ["#a3e635", "#fef08a", "#94a3b8", "#ffffff"],
+          fanfare: 0.82,
+          particles: ["#a3e635", "#fef08a", "#94a3b8", "#ffffff"]
+        },
+        {
+          id: "brachiosaurus",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[7],
+          hue: 135,
+          saturation: 1.04,
+          body: "#34d399",
+          belly: "#dcfce7",
+          dark: "#047857",
+          egg: "#bbf7d0",
+          accessory: "longneck",
+          power: "skyLob",
+          powerIcon: "rainbow",
+          powerPalette: ["#fef08a", "#86efac", "#60a5fa", "#f0abfc"],
+          fanfare: 1.18,
+          particles: ["#fef08a", "#86efac", "#60a5fa", "#f0abfc"]
+        },
+        {
+          id: "parasaurolophus",
+          unlockAt: CONFIG.UNLOCK_THRESHOLDS[8],
+          hue: 315,
+          saturation: 1.08,
+          body: "#fb7185",
+          belly: "#ffe4e6",
+          dark: "#be123c",
+          egg: "#fecdd3",
+          accessory: "crest",
+          power: "musicEcho",
+          powerIcon: "music",
+          powerPalette: ["#f9a8d4", "#fef08a", "#93c5fd", "#ffffff"],
+          fanfare: 1.28,
+          particles: ["#f9a8d4", "#fef08a", "#93c5fd", "#ffffff"]
         }
       ];
       const COURTS = [
         { id: "jungle", unlockAt: 0, title: "Jungle", tint: "rgba(34, 197, 94, 0.04)" },
         { id: "beach", unlockAt: CONFIG.COURT_INTERVAL, title: "Beach", tint: "rgba(14, 165, 233, 0.13)" },
         { id: "volcano", unlockAt: CONFIG.COURT_INTERVAL * 2, title: "Volcano", tint: "rgba(239, 68, 68, 0.16)" },
-        { id: "space", unlockAt: CONFIG.COURT_INTERVAL * 3, title: "Space", tint: "rgba(30, 41, 59, 0.2)" }
+        { id: "space", unlockAt: CONFIG.COURT_INTERVAL * 3, title: "Space", tint: "rgba(30, 41, 59, 0.2)" },
+        { id: "ice", unlockAt: CONFIG.COURT_INTERVAL * 4, title: "Ice", tint: "rgba(125, 211, 252, 0.18)" },
+        { id: "desert", unlockAt: CONFIG.COURT_INTERVAL * 5, title: "Desert", tint: "rgba(251, 191, 36, 0.18)" },
+        { id: "candy", unlockAt: CONFIG.COURT_INTERVAL * 6, title: "Candy", tint: "rgba(244, 114, 182, 0.16)" },
+        { id: "city", unlockAt: CONFIG.COURT_INTERVAL * 7, title: "City", tint: "rgba(148, 163, 184, 0.18)" },
+        { id: "moon", unlockAt: CONFIG.COURT_INTERVAL * 8, title: "Moon", tint: "rgba(165, 180, 252, 0.2)" },
+        { id: "rainbow", unlockAt: CONFIG.COURT_INTERVAL * 9, title: "Rainbow", tint: "rgba(250, 204, 21, 0.14)" }
       ];
       const ASSET_DEFS = (window.DINO_ASSETS && window.DINO_ASSETS.images) || {};
       const ASSET_VERSION = (window.DINO_ASSETS && window.DINO_ASSETS.version) || "local";
@@ -159,25 +276,35 @@
       let audioContext = null;
       let noiseBuffer = null;
       let lastTapAt = 0;
+      let suppressNextTapUntil = 0;
       const loadedSave = loadSave();
 
       const game = {
-        state: loadedSave.score >= CONFIG.FINAL_SCORE ? STATE.END : STATE.START,
+        state: loadedSave.score >= CONFIG.FINAL_SCORE && !loadedSave.finaleSeen ? STATE.END : STATE.START,
         score: loadedSave.score,
         unlockedDinos: loadedSave.unlockedDinos,
         selectedDino: loadedSave.selectedDino,
         court: loadedSave.court,
+        finaleSeen: loadedSave.finaleSeen,
         streak: 0,
         time: 0,
         shakeLeft: 0,
+        rimWobble: 0,
         dinoReact: 0,
         dinoMood: "happy",
         queuedShot: false,
+        queuedPower: false,
         autoLaunchDelay: 0,
+        autoLaunchPower: false,
         pendingHatchDino: null,
-        pendingEnd: loadedSave.score >= CONFIG.FINAL_SCORE,
+        pendingEnd: loadedSave.score >= CONFIG.FINAL_SCORE && !loadedSave.finaleSeen,
+        powerCharge: 0,
+        powerMeter: 0,
+        powerBounce: 0,
+        powerFlash: 0,
+        resetHold: null,
         hatch: null,
-        end: loadedSave.score >= CONFIG.FINAL_SCORE ? { time: 0 } : null,
+        end: loadedSave.score >= CONFIG.FINAL_SCORE && !loadedSave.finaleSeen ? { time: 0 } : null,
         courtFlash: 0,
         shotCount: 0,
         nextShotKind: null,
@@ -188,6 +315,7 @@
         pickerBounce: 0,
         uiTargets: [],
         pickerTargets: [],
+        stickerTargets: [],
         particles: [],
         particlePool: [],
         ball: {
@@ -204,6 +332,12 @@
           afterScore: 0,
           squeeze: 0,
           shotKind: "normal",
+          profile: null,
+          gravityScale: 1,
+          magnetism: CONFIG.BALL_MAGNETISM,
+          power: false,
+          companions: null,
+          bounceArmed: false,
           trail: []
         }
       };
@@ -230,7 +364,8 @@
           score: 0,
           unlockedDinos: [DINOS[0].id],
           selectedDino: DINOS[0].id,
-          court: COURTS[0].id
+          court: COURTS[0].id,
+          finaleSeen: false
         };
       }
 
@@ -271,6 +406,7 @@
         if (!value || typeof value !== "object") return fallback;
 
         const score = Math.max(0, Math.floor(Number(value.score) || 0));
+        const finaleSeen = Boolean(value.finaleSeen) && score >= CONFIG.FINAL_SCORE;
         const validDinos = new Set(validDinoIds());
         const earnedDinos = new Set(unlockedDinosForScore(score));
         const storedDinos = Array.isArray(value.unlockedDinos) ? value.unlockedDinos : [];
@@ -291,7 +427,8 @@
           score,
           unlockedDinos,
           selectedDino,
-          court
+          court,
+          finaleSeen
         };
       }
 
@@ -320,7 +457,8 @@
             score: game.score,
             unlockedDinos: game.unlockedDinos,
             selectedDino: game.selectedDino,
-            court: game.court
+            court: game.court,
+            finaleSeen: game.finaleSeen
           };
           localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
         } catch (error) {
@@ -495,6 +633,12 @@
         game.ball.afterScore = 0;
         game.ball.squeeze = 0;
         game.ball.shotKind = "normal";
+        game.ball.profile = null;
+        game.ball.gravityScale = 1;
+        game.ball.magnetism = CONFIG.BALL_MAGNETISM;
+        game.ball.power = false;
+        game.ball.companions = null;
+        game.ball.bounceArmed = false;
         game.ball.trail.length = 0;
       }
 
@@ -594,6 +738,24 @@
         if (courtId === "space") {
           return { palette: ["#c4b5fd", "#93c5fd", "#fef08a", "#f0abfc"], shape: "planet" };
         }
+        if (courtId === "ice") {
+          return { palette: ["#bae6fd", "#67e8f9", "#ffffff", "#93c5fd"], shape: "spark" };
+        }
+        if (courtId === "desert") {
+          return { palette: ["#fbbf24", "#fed7aa", "#fb923c", "#fef3c7"], shape: "stomp" };
+        }
+        if (courtId === "candy") {
+          return { palette: ["#f9a8d4", "#f0abfc", "#fef08a", "#93c5fd"], shape: "star" };
+        }
+        if (courtId === "city") {
+          return { palette: ["#94a3b8", "#facc15", "#60a5fa", "#ffffff"], shape: "spark" };
+        }
+        if (courtId === "moon") {
+          return { palette: ["#c4b5fd", "#e0e7ff", "#fef08a", "#a5b4fc"], shape: "planet" };
+        }
+        if (courtId === "rainbow") {
+          return { palette: ["#fb7185", "#facc15", "#22c55e", "#60a5fa", "#f0abfc"], shape: "star" };
+        }
         return { palette: ["#86efac", "#fef08a", "#22c55e", "#38bdf8"], shape: "leaf" };
       }
 
@@ -611,15 +773,122 @@
         return "normal";
       }
 
-      function launchShot() {
-        if (game.score >= CONFIG.FINAL_SCORE) {
+      function createShotProfile(kind, dino, isPower) {
+        const profile = {
+          kind,
+          isPower,
+          guaranteedMake: Boolean(isPower),
+          flightScale: 1,
+          gravityScale: 1,
+          magnetism: CONFIG.BALL_MAGNETISM,
+          targetLift: 0,
+          targetSide: 0,
+          companions: null,
+          bounceAt: 0,
+          makeShape: "star"
+        };
+
+        if (kind === "moon") {
+          profile.flightScale = 1.16;
+          profile.gravityScale = 0.9;
+          profile.targetLift = -10;
+        } else if (kind === "dunk") {
+          profile.flightScale = 0.82;
+          profile.gravityScale = 1.08;
+          profile.magnetism = 0.26;
+        } else if (kind === "bank") {
+          profile.flightScale = 0.9;
+          profile.targetSide = 12;
+          profile.magnetism = 0.23;
+          profile.makeShape = "spark";
+        } else if (kind === "star") {
+          profile.magnetism = 0.28;
+        } else if (kind === "rainbow") {
+          profile.flightScale = 1.08;
+          profile.targetLift = -8;
+        }
+
+        if (!isPower) return profile;
+
+        profile.makeShape = dino.powerIcon === "splash" ? "shell" : dino.powerIcon === "pinball" ? "spark" : "star";
+        if (dino.power === "stompDunk") {
+          profile.kind = "dunk";
+          profile.flightScale = 0.7;
+          profile.gravityScale = 1.14;
+          profile.magnetism = 0.34;
+        } else if (dino.power === "tripleShot") {
+          profile.kind = "triple";
+          profile.companions = [{ dx: -18, dy: 14, delay: 0.09 }, { dx: 18, dy: 14, delay: 0.15 }];
+          profile.magnetism = 0.3;
+        } else if (dino.power === "starShield") {
+          profile.kind = "star";
+          profile.flightScale = 1.02;
+          profile.magnetism = 0.38;
+        } else if (dino.power === "floatShot") {
+          profile.kind = "moon";
+          profile.flightScale = 1.28;
+          profile.gravityScale = 0.82;
+          profile.magnetism = 0.32;
+        } else if (dino.power === "zoomShot") {
+          profile.kind = "bank";
+          profile.flightScale = 0.68;
+          profile.gravityScale = 1.12;
+          profile.magnetism = 0.3;
+        } else if (dino.power === "splashShot") {
+          profile.kind = "splash";
+          profile.flightScale = 1.02;
+          profile.magnetism = 0.36;
+        } else if (dino.power === "bounceShot") {
+          profile.kind = "bounce";
+          profile.flightScale = 1.06;
+          profile.bounceAt = 0.52;
+          profile.magnetism = 0.34;
+        } else if (dino.power === "pinballRoll") {
+          profile.kind = "pinball";
+          profile.flightScale = 1.04;
+          profile.magnetism = 0.4;
+          profile.targetSide = -10;
+        } else if (dino.power === "skyLob") {
+          profile.kind = "rainbow";
+          profile.flightScale = 1.34;
+          profile.gravityScale = 0.88;
+          profile.targetLift = -22;
+          profile.magnetism = 0.34;
+        } else if (dino.power === "musicEcho") {
+          profile.kind = "music";
+          profile.flightScale = 1.05;
+          profile.companions = [{ dx: -14, dy: 8, delay: 0.12 }, { dx: -28, dy: 16, delay: 0.24 }];
+          profile.magnetism = 0.34;
+        }
+
+        return profile;
+      }
+
+      function launchShot(options = {}) {
+        if (game.score >= CONFIG.FINAL_SCORE && !game.finaleSeen) {
           startEndCelebration();
           return;
         }
         const ball = game.ball;
         if (ball.state !== "ready") {
-          game.queuedShot = true;
+          if (options.power) game.queuedPower = true;
+          else game.queuedShot = true;
+          playTap();
           return;
+        }
+
+        const dino = getCurrentDino();
+        const isPower = Boolean(options.power);
+        if (isPower && game.powerCharge <= 0) {
+          game.powerBounce = CONFIG.POWER_BUTTON_BOUNCE_MS / 1000;
+          spawnParticles(width - 56, height - 62, 10, dino.particles, "star");
+          playTap();
+          return;
+        }
+        if (isPower) {
+          game.powerCharge = 0;
+          game.powerMeter = 0;
+          game.powerFlash = 0;
         }
 
         const layout = getLayout();
@@ -627,11 +896,13 @@
         const startX = layout.hand.x;
         const startY = layout.hand.y;
         game.shotCount += 1;
-        const shotKind = chooseShotKind();
-        const willMake = Math.random() < CONFIG.MAKE_RATE;
+        const baseKind = isPower ? dino.power : chooseShotKind();
+        const profile = createShotProfile(baseKind, dino, isPower);
+        const shotKind = profile.kind;
+        const willMake = profile.guaranteedMake || Math.random() < CONFIG.MAKE_RATE;
         const assistedScatter = CONFIG.MISS_WOBBLE * (1 - CONFIG.AIM_ASSIST + 0.18);
-        let targetX = hoop.x + rand(-assistedScatter, assistedScatter);
-        let targetY = hoop.y + rand(-assistedScatter * 0.55, assistedScatter * 0.55);
+        let targetX = hoop.x + profile.targetSide + rand(-assistedScatter, assistedScatter);
+        let targetY = hoop.y + profile.targetLift + rand(-assistedScatter * 0.55, assistedScatter * 0.55);
 
         if (!willMake) {
           const missSide = Math.random() < 0.5 ? -1 : 1;
@@ -642,16 +913,15 @@
         const dx = targetX - startX;
         const dy = targetY - startY;
         const distance = Math.hypot(dx, dy);
-        let flightTime = clamp(distance / (520 * CONFIG.SHOT_POWER), 0.78, 1.08);
-        if (shotKind === "moon") flightTime *= 1.16;
-        if (shotKind === "dunk") flightTime *= 0.82;
+        const flightTime = clamp(distance / (520 * CONFIG.SHOT_POWER), 0.78, 1.08) * profile.flightScale;
+        const gravity = CONFIG.GRAVITY * profile.gravityScale;
 
         ball.state = "flying";
         ball.x = startX;
         ball.y = startY;
         ball.r = layout.ballR;
         ball.vx = dx / flightTime;
-        ball.vy = (dy - 0.5 * CONFIG.GRAVITY * flightTime * flightTime) / flightTime;
+        ball.vy = (dy - 0.5 * gravity * flightTime * flightTime) / flightTime;
         ball.age = 0;
         ball.flightTime = flightTime;
         ball.intent = willMake ? "make" : "miss";
@@ -659,11 +929,21 @@
         ball.afterScore = 0;
         ball.squeeze = 1;
         ball.shotKind = shotKind;
+        ball.profile = profile;
+        ball.gravityScale = profile.gravityScale;
+        ball.magnetism = profile.magnetism;
+        ball.power = isPower;
+        ball.companions = profile.companions;
+        ball.bounceArmed = Boolean(profile.bounceAt);
         ball.trail.length = 0;
 
         game.dinoReact = 0.18;
         game.dinoMood = "launch";
         playTap();
+        if (isPower) {
+          game.shakeLeft = Math.max(game.shakeLeft, 0.08);
+          spawnParticles(startX, startY, 18, dino.powerPalette || dino.particles, profile.makeShape);
+        }
       }
 
       function handleProgressionAfterScore() {
@@ -707,7 +987,9 @@
           revealed: false
         };
         game.queuedShot = false;
+        game.queuedPower = false;
         game.autoLaunchDelay = 0;
+        game.autoLaunchPower = false;
         game.ball.state = "ready";
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
@@ -737,7 +1019,9 @@
         game.surprise = null;
         game.dinoCelebration = null;
         game.queuedShot = false;
+        game.queuedPower = false;
         game.autoLaunchDelay = 0;
+        game.autoLaunchPower = false;
         game.ball.state = "ready";
         game.dinoReact = 0.9;
         game.dinoMood = "happy";
@@ -754,9 +1038,15 @@
         game.unlockedDinos = fresh.unlockedDinos.slice();
         game.selectedDino = fresh.selectedDino;
         game.court = fresh.court;
+        game.finaleSeen = fresh.finaleSeen;
         game.streak = 0;
         game.pendingHatchDino = null;
         game.pendingEnd = false;
+        game.powerCharge = 0;
+        game.powerMeter = 0;
+        game.powerBounce = 0;
+        game.powerFlash = 0;
+        game.resetHold = null;
         game.hatch = null;
         game.end = null;
         game.courtFlash = 0;
@@ -768,7 +1058,9 @@
         game.hoopSparkle = 0;
         game.pickerBounce = 0;
         game.queuedShot = false;
+        game.queuedPower = false;
         game.autoLaunchDelay = 0;
+        game.autoLaunchPower = false;
         game.ball.state = "ready";
         game.dinoReact = 0.4;
         game.dinoMood = "happy";
@@ -828,6 +1120,8 @@
           spawnParticles(layout.dino.x - layout.dino.size * 0.35, layout.dino.y - layout.dino.size * 0.48, 24, dino.particles, "star");
         } else if (dino.id === "ptero") {
           spawnParticles(layout.dino.x, layout.dino.y - layout.dino.size * 1.05, 28, dino.particles, "planet");
+        } else {
+          spawnParticles(layout.dino.x, layout.dino.y - layout.dino.size * 0.72, 22, dino.particles, dino.powerIcon === "splash" ? "shell" : dino.powerIcon === "pinball" ? "spark" : "star");
         }
       }
 
@@ -847,18 +1141,34 @@
         ball.squeeze = 1;
         game.score += 1;
         game.streak += 1;
-        if (game.score >= CONFIG.FINAL_SCORE) {
+        if (game.powerCharge < 1) {
+          game.powerMeter += 1;
+          if (game.powerMeter >= CONFIG.POWER_CHARGE_MAKES) {
+            game.powerCharge = 1;
+            game.powerMeter = 0;
+            game.powerFlash = 1.2;
+          }
+        }
+        if (game.score >= CONFIG.FINAL_SCORE && !game.finaleSeen) {
           game.pendingEnd = true;
           game.queuedShot = false;
+          game.queuedPower = false;
         }
         game.shakeLeft = CONFIG.SHAKE_MS / 1000;
+        game.rimWobble = 1;
         game.dinoReact = 0.58;
         game.dinoMood = "happy";
         const dino = getCurrentDino();
         const courtJuice = getCourtJuice();
         const shotBonus = ball.shotKind === "normal" ? 0 : 16;
+        const powerBonus = ball.power ? 22 : 0;
         spawnParticles(layout.hoop.x, layout.hoop.y, CONFIG.PARTICLE_COUNT + Math.min(game.streak, 6) * 3 + shotBonus, courtJuice.palette, courtJuice.shape);
-        spawnParticles(layout.hoop.x, layout.hoop.y, 14, dino.particles, ball.shotKind === "bank" ? "spark" : "star");
+        spawnParticles(layout.hoop.x, layout.hoop.y, 14 + powerBonus, ball.power ? dino.powerPalette || dino.particles : dino.particles, ball.profile ? ball.profile.makeShape : ball.shotKind === "bank" ? "spark" : "star");
+        if (game.streak === 3 || game.streak === 5 || game.streak % 10 === 0) {
+          game.hoopSparkle = Math.max(game.hoopSparkle, 1.4);
+          spawnParticles(layout.hoop.x, layout.hoop.y - layout.hoop.rimR, CONFIG.PARTICLE_COUNT + game.streak, COLORS, "star");
+          playTone({ type: "triangle", start: 740 + Math.min(game.streak, 12) * 18, end: 980 + Math.min(game.streak, 12) * 20, duration: 0.12, gain: 0.035 });
+        }
         if (ball.shotKind === "bank") game.hoopSparkle = 1.2;
         if (ball.shotKind === "dunk") game.shakeLeft = Math.max(game.shakeLeft, 0.28);
         playSwish();
@@ -879,7 +1189,11 @@
         game.dinoMood = "shrug";
         playMiss();
         resetReadyBall();
-        if (game.queuedShot) {
+        if (game.queuedPower) {
+          game.queuedPower = false;
+          game.autoLaunchPower = true;
+          game.autoLaunchDelay = 0.08;
+        } else if (game.queuedShot) {
           game.queuedShot = false;
           game.autoLaunchDelay = 0.08;
         }
@@ -894,12 +1208,16 @@
           startHatch(dinoId);
           return;
         }
-        if (game.pendingEnd || game.score >= CONFIG.FINAL_SCORE) {
+        if (game.pendingEnd || (game.score >= CONFIG.FINAL_SCORE && !game.finaleSeen)) {
           startEndCelebration();
           return;
         }
         resetReadyBall();
-        if (game.queuedShot) {
+        if (game.queuedPower) {
+          game.queuedPower = false;
+          game.autoLaunchPower = true;
+          game.autoLaunchDelay = 0.08;
+        } else if (game.queuedShot) {
           game.queuedShot = false;
           game.autoLaunchDelay = 0.08;
         }
@@ -963,13 +1281,13 @@
           const dy = hoop.y - ball.y;
           const dist = Math.hypot(dx, dy);
           if (ball.intent === "make" && ball.age > ball.flightTime * 0.42 && dist < hoop.sensorR * 3.2) {
-            const pull = CONFIG.BALL_MAGNETISM * dt * 16;
+            const pull = (ball.magnetism || CONFIG.BALL_MAGNETISM) * dt * 16;
             ball.vx += dx * pull;
             ball.vy += dy * pull;
           }
         }
 
-        ball.vy += CONFIG.GRAVITY * dt;
+        ball.vy += CONFIG.GRAVITY * (ball.gravityScale || 1) * dt;
         if (ball.shotKind !== "normal") {
           ball.trail.push({ x: ball.x, y: ball.y, age: 0, kind: ball.shotKind });
           if (ball.trail.length > 28) ball.trail.shift();
@@ -979,8 +1297,27 @@
         for (const point of ball.trail) point.age += dt;
 
         const hoop = layout.hoop;
+        if (!ball.scored && ball.shotKind === "pinball" && ball.intent === "make" && ball.age > ball.flightTime * 0.74) {
+          const orbit = clamp((ball.age - ball.flightTime * 0.74) / (ball.flightTime * 0.24), 0, 1);
+          const angle = orbit * TAU * 1.45 + game.time * 0.6;
+          const radius = hoop.rimR * (2.55 - orbit * 1.35);
+          ball.x = hoop.x + Math.cos(angle) * radius;
+          ball.y = hoop.y + Math.sin(angle) * hoop.rimR * 0.5;
+          ball.vx *= 0.82;
+          ball.vy *= 0.82;
+        }
+
+        if (ball.bounceArmed && ball.profile && ball.profile.bounceAt && ball.age >= ball.flightTime * ball.profile.bounceAt) {
+          ball.bounceArmed = false;
+          ball.squeeze = 1;
+          ball.vy = -Math.abs(ball.vy) * 0.42;
+          spawnParticles(ball.x, Math.min(layout.groundY - ball.r, ball.y + ball.r * 0.8), 18, getCurrentDino().powerPalette || getCurrentDino().particles, "stomp");
+          playTap();
+        }
+
         const sensorDist = Math.hypot(ball.x - hoop.x, ball.y - hoop.y);
-        if (!ball.scored && (sensorDist <= hoop.sensorR || (ball.intent === "make" && ball.age >= ball.flightTime * 0.98))) {
+        const canSensorScore = ball.shotKind !== "pinball" || ball.age >= ball.flightTime * 0.9;
+        if (!ball.scored && ((canSensorScore && sensorDist <= hoop.sensorR) || (ball.intent === "make" && ball.age >= ball.flightTime * 0.98))) {
           scoreBasket(ball.intent === "make");
         }
 
@@ -1004,10 +1341,22 @@
       function update(dt) {
         game.time += dt;
         game.shakeLeft = Math.max(0, game.shakeLeft - dt);
+        game.rimWobble = Math.max(0, game.rimWobble - dt * 4.2);
         game.dinoReact = Math.max(0, game.dinoReact - dt);
         game.courtFlash = Math.max(0, game.courtFlash - dt);
         game.hoopSparkle = Math.max(0, game.hoopSparkle - dt);
         game.pickerBounce = Math.max(0, game.pickerBounce - dt);
+        game.powerBounce = Math.max(0, game.powerBounce - dt);
+        game.powerFlash = Math.max(0, game.powerFlash - dt);
+        if (game.resetHold && game.resetHold.active) {
+          game.resetHold.time += dt;
+          if (game.resetHold.time >= CONFIG.PARENT_HOLD_SECONDS) {
+            restartRound();
+            game.state = STATE.START;
+            game.resetHold = null;
+            playFanfare(getCurrentDino());
+          }
+        }
         if (game.dinoCelebration) {
           game.dinoCelebration.time += dt;
           if (game.dinoCelebration.time >= game.dinoCelebration.duration) game.dinoCelebration = null;
@@ -1025,7 +1374,11 @@
         if (game.state === STATE.PLAY) {
           if (game.autoLaunchDelay > 0) {
             game.autoLaunchDelay -= dt;
-            if (game.autoLaunchDelay <= 0) launchShot();
+            if (game.autoLaunchDelay <= 0) {
+              const usePower = game.autoLaunchPower;
+              game.autoLaunchPower = false;
+              launchShot({ power: usePower });
+            }
           }
           updateBall(dt);
         } else if (game.state === STATE.HATCH && game.hatch) {
@@ -1158,6 +1511,59 @@
             ctx.ellipse(x, y, 24, 8, (i % 2 ? -0.35 : 0.35), 0, TAU);
             ctx.fill();
           }
+        } else if (court.id === "ice") {
+          ctx.fillStyle = "rgba(219, 234, 254, 0.68)";
+          ctx.fillRect(0, layout.groundY, width, height - layout.groundY);
+          ctx.strokeStyle = "rgba(14, 165, 233, 0.28)";
+          ctx.lineWidth = 4;
+          for (let x = -30; x < width + 30; x += 44) {
+            ctx.beginPath();
+            ctx.moveTo(x, layout.groundY + 18);
+            ctx.lineTo(x + 28, layout.groundY + 4);
+            ctx.stroke();
+          }
+        } else if (court.id === "desert") {
+          ctx.fillStyle = "rgba(251, 191, 36, 0.6)";
+          ctx.fillRect(0, layout.groundY - layout.minSide * 0.03, width, height - layout.groundY + layout.minSide * 0.03);
+          ctx.fillStyle = "rgba(180, 83, 9, 0.2)";
+          for (let x = -20; x < width + 20; x += 70) {
+            ctx.beginPath();
+            ctx.ellipse(x, layout.groundY + 24, 50, 9, 0, 0, TAU);
+            ctx.fill();
+          }
+        } else if (court.id === "candy") {
+          ctx.fillStyle = "rgba(252, 231, 243, 0.76)";
+          ctx.fillRect(0, layout.groundY, width, height - layout.groundY);
+          for (let x = 20; x < width; x += 68) {
+            ctx.fillStyle = x % 136 === 20 ? "#f9a8d4" : "#93c5fd";
+            ctx.beginPath();
+            ctx.arc(x, layout.groundY + 26, 9, 0, TAU);
+            ctx.fill();
+          }
+        } else if (court.id === "city") {
+          ctx.fillStyle = "rgba(71, 85, 105, 0.2)";
+          for (let x = 0; x < width; x += 54) {
+            const h = 48 + (x % 4) * 16;
+            fillRoundedRect(x, layout.groundY - h, 38, h, 4, "rgba(51, 65, 85, 0.35)");
+          }
+        } else if (court.id === "moon") {
+          ctx.fillStyle = "rgba(199, 210, 254, 0.38)";
+          ctx.fillRect(0, layout.groundY, width, height - layout.groundY);
+          ctx.fillStyle = "rgba(99, 102, 241, 0.24)";
+          for (let x = 12; x < width; x += 82) {
+            ctx.beginPath();
+            ctx.arc(x, layout.groundY + 25, 15, 0, TAU);
+            ctx.fill();
+          }
+        } else if (court.id === "rainbow") {
+          const bands = ["rgba(251, 113, 133, 0.35)", "rgba(250, 204, 21, 0.35)", "rgba(34, 197, 94, 0.3)", "rgba(96, 165, 250, 0.3)"];
+          for (let i = 0; i < bands.length; i += 1) {
+            ctx.strokeStyle = bands[i];
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.arc(width * 0.5, layout.groundY + layout.minSide * 0.16, layout.minSide * (0.52 + i * 0.05), Math.PI, TAU);
+            ctx.stroke();
+          }
         }
       }
 
@@ -1276,7 +1682,11 @@
         const hoop = layout.hoop;
         const asset = ASSET_DEFS["prop.hoopFront"];
         const widthScale = asset ? asset.logicalWidthScale : 3.05;
+        const wobble = game.rimWobble > 0 ? Math.sin(game.time * 44) * hoop.rimR * 0.05 * game.rimWobble : 0;
+        ctx.save();
+        ctx.translate(0, wobble);
         drawSprite("prop.hoopFront", hoop.x, hoop.y, hoop.rimR * widthScale);
+        ctx.restore();
       }
 
       function drawHoop(layout) {
@@ -1295,6 +1705,35 @@
           ctx.quadraticCurveTo(-size * 0.72, -size * 0.82, -size * 0.76, -size * 0.28);
           ctx.quadraticCurveTo(-size * 0.48, -size * 0.42, -size * 0.16, -size * 0.38);
           ctx.closePath();
+          ctx.fill();
+        }
+        if (dino.accessory === "sail" && layer === "behind") {
+          ctx.fillStyle = dino.dark;
+          ctx.globalAlpha *= 0.52;
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.38, -size * 0.62);
+          ctx.lineTo(-size * 0.18, -size * 0.96);
+          ctx.lineTo(size * 0.06, -size * 0.66);
+          ctx.lineTo(size * 0.18, -size * 0.9);
+          ctx.lineTo(size * 0.3, -size * 0.58);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (dino.accessory === "longneck" && layer === "behind") {
+          fillRoundedRect(size * 0.06, -size * 1.17, size * 0.22, size * 0.56, size * 0.1, dino.body);
+          fillRoundedRect(size * 0.14, -size * 1.3, size * 0.34, size * 0.2, size * 0.1, dino.body);
+        }
+        if (dino.accessory === "club" && layer === "behind") {
+          ctx.strokeStyle = dino.dark;
+          ctx.lineWidth = Math.max(5, size * 0.06);
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.48, -size * 0.36);
+          ctx.lineTo(-size * 0.86, -size * 0.26);
+          ctx.stroke();
+          ctx.fillStyle = dino.dark;
+          ctx.beginPath();
+          ctx.arc(-size * 0.94, -size * 0.22, size * 0.12, 0, TAU);
           ctx.fill();
         }
 
@@ -1331,6 +1770,28 @@
               ctx.fill();
               ctx.stroke();
             }
+          } else if (dino.accessory === "runner") {
+            ctx.strokeStyle = dino.dark;
+            ctx.lineWidth = Math.max(3, size * 0.035);
+            for (let i = 0; i < 3; i += 1) {
+              ctx.beginPath();
+              ctx.moveTo(-size * (0.34 - i * 0.12), -size * 0.72);
+              ctx.lineTo(-size * (0.26 - i * 0.12), -size * 0.86);
+              ctx.stroke();
+            }
+          } else if (dino.accessory === "dome") {
+            ctx.fillStyle = "#fef3c7";
+            ctx.strokeStyle = dino.dark;
+            ctx.lineWidth = Math.max(2, size * 0.018);
+            ctx.beginPath();
+            ctx.arc(size * 0.42, -size * 0.88, size * 0.18, Math.PI * 1.05, Math.PI * 1.95);
+            ctx.fill();
+            ctx.stroke();
+          } else if (dino.accessory === "crest") {
+            ctx.fillStyle = dino.dark;
+            ctx.beginPath();
+            ctx.ellipse(size * 0.36, -size * 0.97, size * 0.09, size * 0.28, -0.7, 0, TAU);
+            ctx.fill();
           }
         }
         ctx.restore();
@@ -1342,11 +1803,12 @@
         const launchLean = mood === "launch" ? react / 0.18 : 0;
         const shrug = mood === "shrug" ? react / 0.34 : 0;
         const squash = mood === "happy" ? Math.sin((react / 0.58) * Math.PI) * 0.07 : 0;
+        const breathe = mood === "idle" || mood === "happy" ? Math.sin(game.time * 2.3 + size * 0.01) * 0.012 : 0;
 
         ctx.save();
         ctx.translate(x, groundY + happyHop);
         ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
-        ctx.scale(1 + squash, 1 - squash);
+        ctx.scale(1 + squash + breathe, 1 - squash - breathe * 0.45);
 
         drawDinoAccessory(dino, size, "behind");
 
@@ -1402,6 +1864,7 @@
         const launchLean = mood === "launch" ? react / 0.18 : 0;
         const shrug = mood === "shrug" ? react / 0.34 : 0;
         const squash = happyActive ? Math.sin((react / 0.58) * Math.PI) * 0.07 : 0;
+        const breathe = mood === "idle" || mood === "happy" ? Math.sin(game.time * 2.3 + size * 0.01) * 0.012 : 0;
         const pose = getPoseForMood(mood, happyActive);
         const spriteChoice = getDinoSpriteChoice(dino, pose);
         const spriteId = spriteChoice.id;
@@ -1411,7 +1874,7 @@
         ctx.save();
         ctx.translate(x, groundY + happyHop);
         ctx.rotate(-launchLean * 0.08 + shrug * 0.04);
-        ctx.scale(1 + squash, 1 - squash);
+        ctx.scale(1 + squash + breathe, 1 - squash - breathe * 0.45);
         if (!specificSprite) drawDinoAccessory(dino, size, "behind");
         ctx.filter = specificSprite ? "none" : `hue-rotate(${dino.hue || 0}deg) saturate(${dino.saturation || 1})`;
         const drewSprite = drawSprite(spriteId, 0, 0, size * widthScale);
@@ -1446,6 +1909,16 @@
             ctx.strokeStyle = "#67e8f9";
           } else if (ball.shotKind === "star") {
             ctx.strokeStyle = "#fef08a";
+          } else if (ball.shotKind === "splash") {
+            ctx.strokeStyle = "#67e8f9";
+          } else if (ball.shotKind === "music") {
+            ctx.strokeStyle = i % 2 ? "#f9a8d4" : "#93c5fd";
+          } else if (ball.shotKind === "triple") {
+            ctx.strokeStyle = i % 2 ? "#fef08a" : "#7dd3fc";
+          } else if (ball.shotKind === "pinball") {
+            ctx.strokeStyle = "#a3e635";
+          } else if (ball.shotKind === "bounce") {
+            ctx.strokeStyle = "#fb923c";
           } else {
             ctx.strokeStyle = "#fb923c";
           }
@@ -1486,6 +1959,39 @@
           ctx.fillStyle = "rgba(254, 240, 138, 0.62)";
           drawStar(0, 0, ball.r * 0.8, ball.r * 1.65);
           ctx.restore();
+        } else if (ball.shotKind === "splash") {
+          ctx.save();
+          ctx.globalAlpha = 0.36;
+          ctx.strokeStyle = "#67e8f9";
+          ctx.lineWidth = Math.max(3, ball.r * 0.2);
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, ball.r * 1.38, Math.PI * 0.1, Math.PI * 1.25);
+          ctx.stroke();
+          ctx.restore();
+        } else if (ball.shotKind === "music") {
+          ctx.save();
+          ctx.strokeStyle = "rgba(249, 168, 212, 0.7)";
+          ctx.fillStyle = "rgba(249, 168, 212, 0.65)";
+          ctx.lineWidth = Math.max(2, ball.r * 0.12);
+          const noteX = ball.x + ball.r * 1.35;
+          const noteY = ball.y - ball.r * 1.2;
+          ctx.beginPath();
+          ctx.moveTo(noteX, noteY - ball.r * 0.55);
+          ctx.lineTo(noteX, noteY + ball.r * 0.28);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(noteX - ball.r * 0.16, noteY + ball.r * 0.3, ball.r * 0.22, 0, TAU);
+          ctx.fill();
+          ctx.restore();
+        } else if (ball.shotKind === "pinball") {
+          ctx.save();
+          ctx.globalAlpha = 0.45;
+          ctx.strokeStyle = "#a3e635";
+          ctx.lineWidth = Math.max(2, ball.r * 0.16);
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, ball.r * 1.55, 0, TAU);
+          ctx.stroke();
+          ctx.restore();
         }
 
         if (drawSprite("prop.basketball", ball.x, ball.y, ball.r * widthScale, {
@@ -1515,6 +2021,29 @@
         ctx.quadraticCurveTo(0, 0, ball.r * 0.72, ball.r * 0.72);
         ctx.stroke();
         ctx.restore();
+      }
+
+      function drawCompanionBalls(ball) {
+        if (!ball.companions || !ball.companions.length || ball.state === "ready") return;
+        const progress = clamp(ball.age / Math.max(0.01, ball.flightTime), 0, 1);
+        for (const companion of ball.companions) {
+          const fadeIn = clamp((ball.age - companion.delay) / 0.18, 0, 1);
+          if (fadeIn <= 0) continue;
+          const ghost = {
+            ...ball,
+            x: ball.x + companion.dx * (1 - progress * 0.35),
+            y: ball.y + companion.dy * (1 - progress * 0.25),
+            r: ball.r * 0.82,
+            vx: ball.vx,
+            vy: ball.vy,
+            squeeze: ball.squeeze * 0.8,
+            shotKind: ball.shotKind === "music" ? "star" : ball.shotKind
+          };
+          ctx.save();
+          ctx.globalAlpha = 0.36 * fadeIn;
+          drawBall(ghost, 1);
+          ctx.restore();
+        }
       }
 
       function drawParticles() {
@@ -1690,14 +2219,11 @@
       function getPlayControls(layout) {
         const size = clamp(layout.minSide * 0.13, 52, 68);
         const y = height - layout.safe.bottom - size * 0.68;
-        const controls = [
+        return [
           { type: "picker", x: layout.safe.left + size * 0.74, y, r: size * 0.52, size },
-          { type: "stickers", x: layout.safe.left + size * 1.95, y, r: size * 0.52, size }
+          { type: "stickers", x: layout.safe.left + size * 1.95, y, r: size * 0.52, size },
+          { type: "power", x: width - layout.safe.right - size * 0.74, y, r: size * 0.58, size }
         ];
-        if (unlockedCourtsForScore(game.score).length > 1) {
-          controls.push({ type: "court", x: width - layout.safe.right - size * 0.74, y, r: size * 0.52, size });
-        }
-        return controls;
       }
 
       function drawCourtIcon(x, y, size) {
@@ -1729,6 +2255,48 @@
           ctx.fillRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.23);
           ctx.fillStyle = "#fde68a";
           ctx.fillRect(-size * 0.32, size * 0.01, size * 0.64, size * 0.21);
+        } else if (court.id === "ice") {
+          ctx.fillStyle = "#bae6fd";
+          ctx.fillRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.44);
+          ctx.strokeStyle = "#38bdf8";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.22, size * 0.1);
+          ctx.lineTo(size * 0.2, -size * 0.12);
+          ctx.stroke();
+        } else if (court.id === "desert") {
+          ctx.fillStyle = "#fbbf24";
+          ctx.fillRect(-size * 0.32, -size * 0.02, size * 0.64, size * 0.24);
+          ctx.fillStyle = "#fed7aa";
+          ctx.beginPath();
+          ctx.arc(-size * 0.14, -size * 0.1, size * 0.08, 0, TAU);
+          ctx.fill();
+        } else if (court.id === "candy") {
+          ctx.fillStyle = "#f9a8d4";
+          ctx.fillRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.44);
+          ctx.fillStyle = "#fef08a";
+          drawStar(0, 0, size * 0.08, size * 0.18);
+        } else if (court.id === "city") {
+          ctx.fillStyle = "#475569";
+          for (let i = 0; i < 3; i += 1) {
+            ctx.fillRect(-size * 0.24 + i * size * 0.17, -size * (0.02 + i * 0.05), size * 0.12, size * 0.24 + i * size * 0.05);
+          }
+        } else if (court.id === "moon") {
+          ctx.fillStyle = "#c4b5fd";
+          ctx.fillRect(-size * 0.32, -size * 0.22, size * 0.64, size * 0.44);
+          ctx.fillStyle = "#e0e7ff";
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.16, 0, TAU);
+          ctx.fill();
+        } else if (court.id === "rainbow") {
+          const arcs = ["#fb7185", "#facc15", "#22c55e", "#60a5fa"];
+          for (let i = 0; i < arcs.length; i += 1) {
+            ctx.strokeStyle = arcs[i];
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, size * 0.18, size * (0.16 + i * 0.06), Math.PI, TAU);
+            ctx.stroke();
+          }
         } else {
           ctx.fillStyle = "#22c55e";
           ctx.beginPath();
@@ -1738,17 +2306,113 @@
         ctx.restore();
       }
 
+      function drawPowerIcon(icon, x, y, size, charged, dino) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = charged ? "#0f172a" : "rgba(15, 23, 42, 0.35)";
+        ctx.fillStyle = charged ? (dino.powerPalette && dino.powerPalette[0]) || "#fef08a" : "rgba(148, 163, 184, 0.5)";
+        ctx.lineWidth = Math.max(2, size * 0.06);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        if (icon === "triple") {
+          for (let i = 0; i < 3; i += 1) {
+            ctx.beginPath();
+            ctx.arc((i - 1) * size * 0.2, (i % 2) * size * 0.12, size * 0.14, 0, TAU);
+            ctx.fill();
+            ctx.stroke();
+          }
+        } else if (icon === "splash") {
+          for (let i = 0; i < 3; i += 1) {
+            ctx.beginPath();
+            ctx.arc((i - 1) * size * 0.18, size * 0.02, size * (0.12 + i * 0.015), Math.PI, TAU);
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.arc(0, -size * 0.16, size * 0.11, 0, TAU);
+          ctx.fill();
+        } else if (icon === "feather") {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, size * 0.16, size * 0.35, -0.65, 0, TAU);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.12, size * 0.22);
+          ctx.lineTo(size * 0.18, -size * 0.28);
+          ctx.stroke();
+        } else if (icon === "zoom") {
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.3, -size * 0.16);
+          ctx.lineTo(size * 0.18, -size * 0.16);
+          ctx.lineTo(size * 0.34, 0);
+          ctx.lineTo(size * 0.18, size * 0.16);
+          ctx.lineTo(-size * 0.3, size * 0.16);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-size * 0.36, 0);
+          ctx.lineTo(-size * 0.14, 0);
+          ctx.stroke();
+        } else if (icon === "bounce") {
+          ctx.beginPath();
+          ctx.arc(0, -size * 0.08, size * 0.16, 0, TAU);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, size * 0.18, size * 0.25, Math.PI * 1.05, Math.PI * 1.95);
+          ctx.stroke();
+        } else if (icon === "pinball") {
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.25, 0, TAU);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 0.08, 0, TAU);
+          ctx.fill();
+        } else if (icon === "rainbow") {
+          const arcs = ["#f97316", "#fef08a", "#22c55e", "#60a5fa"];
+          for (let i = 0; i < arcs.length; i += 1) {
+            ctx.strokeStyle = charged ? arcs[i] : "rgba(15, 23, 42, 0.25)";
+            ctx.beginPath();
+            ctx.arc(0, size * 0.18, size * (0.18 + i * 0.08), Math.PI, TAU);
+            ctx.stroke();
+          }
+        } else if (icon === "music") {
+          ctx.beginPath();
+          ctx.moveTo(size * 0.04, -size * 0.28);
+          ctx.lineTo(size * 0.04, size * 0.15);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(-size * 0.1, size * 0.18, size * 0.12, 0, TAU);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(size * 0.04, -size * 0.28);
+          ctx.lineTo(size * 0.26, -size * 0.2);
+          ctx.stroke();
+        } else if (icon === "star") {
+          drawStar(0, 0, size * 0.13, size * 0.31);
+        } else {
+          ctx.beginPath();
+          ctx.ellipse(0, size * 0.08, size * 0.3, size * 0.16, 0, 0, TAU);
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       function drawPlayControls(layout) {
         game.uiTargets = getPlayControls(layout);
         for (const target of game.uiTargets) {
+          const isPower = target.type === "power";
+          const charged = game.powerCharge > 0;
+          const bounce = isPower && game.powerBounce > 0 ? Math.sin(game.powerBounce * 38) * 4 : 0;
           ctx.save();
-          ctx.globalAlpha = 0.92;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+          ctx.globalAlpha = isPower && !charged ? 0.78 : 0.94;
+          ctx.fillStyle = isPower && charged ? "rgba(254, 240, 138, 0.92)" : "rgba(255, 255, 255, 0.82)";
           ctx.beginPath();
-          ctx.arc(target.x, target.y, target.r, 0, TAU);
+          ctx.arc(target.x, target.y + bounce, target.r * (isPower && game.powerFlash > 0 ? 1.04 + Math.sin(game.time * 18) * 0.025 : 1), 0, TAU);
           ctx.fill();
-          ctx.strokeStyle = "rgba(15, 23, 42, 0.18)";
-          ctx.lineWidth = 3;
+          ctx.strokeStyle = isPower && charged ? "#f97316" : "rgba(15, 23, 42, 0.18)";
+          ctx.lineWidth = isPower && charged ? 5 : 3;
           ctx.stroke();
           ctx.restore();
 
@@ -1763,8 +2427,18 @@
             ctx.lineWidth = 2;
             ctx.stroke();
             ctx.restore();
-          } else {
-            drawCourtIcon(target.x, target.y, target.size * 0.8);
+          } else if (target.type === "power") {
+            const dino = getCurrentDino();
+            drawPowerIcon(dino.powerIcon, target.x, target.y + bounce, target.size * 0.72, charged, dino);
+            if (!charged && game.powerMeter > 0) {
+              ctx.save();
+              ctx.strokeStyle = "rgba(249, 115, 22, 0.7)";
+              ctx.lineWidth = 3;
+              ctx.beginPath();
+              ctx.arc(target.x, target.y + bounce, target.r * 0.78, -Math.PI / 2, -Math.PI / 2 + TAU * (game.powerMeter / CONFIG.POWER_CHARGE_MAKES));
+              ctx.stroke();
+              ctx.restore();
+            }
           }
         }
       }
@@ -1780,20 +2454,91 @@
         };
       }
 
+      function getResetHoldTarget(layout) {
+        const size = clamp(layout.minSide * 0.095, 38, 52);
+        return {
+          x: width - layout.safe.right - size * 0.78,
+          y: layout.safe.top + size * 0.78,
+          r: size * 0.48,
+          size
+        };
+      }
+
+      function drawResetHoldTarget(layout) {
+        if (!(game.state === STATE.END || (game.state === STATE.PLAY && game.score >= CONFIG.FINAL_SCORE && game.finaleSeen))) return;
+        const target = getResetHoldTarget(layout);
+        const progress = game.resetHold && game.resetHold.active ? clamp(game.resetHold.time / CONFIG.PARENT_HOLD_SECONDS, 0, 1) : 0;
+        ctx.save();
+        ctx.globalAlpha = game.state === STATE.END ? 0.92 : 0.68;
+        ctx.fillStyle = "rgba(255, 255, 255, 0.82)";
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.r, 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = Math.max(3, target.size * 0.075);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.size * 0.18, Math.PI * 0.25, Math.PI * 1.72);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(target.x - target.size * 0.13, target.y - target.size * 0.16);
+        ctx.lineTo(target.x - target.size * 0.25, target.y - target.size * 0.16);
+        ctx.lineTo(target.x - target.size * 0.2, target.y - target.size * 0.04);
+        ctx.stroke();
+
+        if (progress > 0) {
+          ctx.strokeStyle = "#f97316";
+          ctx.lineWidth = Math.max(4, target.size * 0.09);
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, target.r + 5, -Math.PI / 2, -Math.PI / 2 + TAU * progress);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       function getPickerTiles(layout) {
-        const tile = clamp(layout.minSide * 0.27, 94, 142);
-        const gap = clamp(layout.minSide * 0.045, 14, 24);
-        const gridW = tile * 2 + gap;
-        const gridH = tile * 2 + gap;
+        const columns = width >= height ? 5 : 3;
+        const gap = clamp(layout.minSide * 0.03, 10, 18);
+        const tile = Math.min(clamp(layout.minSide * 0.21, 70, 112), (width * 0.9 - (columns - 1) * gap) / columns);
+        const rows = Math.ceil(DINOS.length / columns);
+        const gridW = tile * columns + gap * (columns - 1);
+        const gridH = tile * rows + gap * (rows - 1);
         const startX = width * 0.5 - gridW * 0.5 + tile * 0.5;
         const startY = height * 0.5 - gridH * 0.5 + tile * 0.5 + layout.safe.top * 0.2;
         return DINOS.map((dino, index) => ({
           dino,
-          x: startX + (index % 2) * (tile + gap),
-          y: startY + Math.floor(index / 2) * (tile + gap),
+          x: startX + (index % columns) * (tile + gap),
+          y: startY + Math.floor(index / columns) * (tile + gap),
           w: tile,
           h: tile,
           locked: !game.unlockedDinos.includes(dino.id)
+        }));
+      }
+
+      function getStickerTiles(layout) {
+        const items = [
+          ...DINOS.map((dino) => ({ type: "dino", dino, locked: !game.unlockedDinos.includes(dino.id) })),
+          ...COURTS.map((court) => ({ type: "court", court, locked: !unlockedCourtsForScore(game.score).includes(court.id) }))
+        ];
+        const columns = width >= height ? 10 : 5;
+        const gap = clamp(layout.minSide * 0.018, 7, 13);
+        const maxTileW = (width * 0.92 - (columns - 1) * gap) / columns;
+        const tile = Math.min(clamp(layout.minSide * 0.145, 48, 74), maxTileW);
+        const rows = Math.ceil(items.length / columns);
+        const gridW = columns * tile + (columns - 1) * gap;
+        const gridH = rows * tile + (rows - 1) * gap;
+        const startX = width * 0.5 - gridW * 0.5 + tile * 0.5;
+        const startY = height * 0.52 - gridH * 0.5 + layout.safe.top * 0.08;
+        return items.map((item, index) => ({
+          ...item,
+          x: startX + (index % columns) * (tile + gap),
+          y: startY + Math.floor(index / columns) * (tile + gap),
+          w: tile,
+          h: tile
         }));
       }
 
@@ -1892,8 +2637,9 @@
 
         ctx.font = `800 ${clamp(layout.minSide * 0.06, 22, 32)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
         ctx.globalAlpha = endTime >= CONFIG.END_RESTART_DELAY ? 1 : 0.35;
-        ctx.fillText("Tap to play again", width * 0.5, height - layout.safe.bottom - clamp(height * 0.1, 54, 86));
+        ctx.fillText("Tap to keep playing", width * 0.5, height - layout.safe.bottom - clamp(height * 0.1, 54, 86));
         ctx.restore();
+        drawResetHoldTarget(layout);
       }
 
       function drawHoopSparkles(layout) {
@@ -1982,6 +2728,7 @@
         drawHoopBack(layout);
         drawDino(layout.dino.x, layout.dino.y, layout.dino.size, game.dinoMood);
         drawShotTrail(game.ball);
+        drawCompanionBalls(game.ball);
         drawBall(game.ball, 1);
         drawHoopFront(layout);
         drawHoopSparkles(layout);
@@ -1989,6 +2736,7 @@
         drawScore(layout);
         drawCourtBanner(layout);
         drawPlayControls(layout);
+        drawResetHoldTarget(layout);
         drawSurprise(layout);
       }
 
@@ -2111,44 +2859,33 @@
         ctx.textBaseline = "middle";
         ctx.fillText("Stickers", width * 0.5, layout.safe.top + clamp(layout.minSide * 0.15, 58, 84));
 
-        const tile = clamp(layout.minSide * 0.19, 72, 108);
-        const gap = clamp(layout.minSide * 0.035, 12, 18);
-        const columns = 4;
-        const gridW = columns * tile + (columns - 1) * gap;
-        const startX = width * 0.5 - gridW * 0.5 + tile * 0.5;
-        const startY = height * 0.34;
-        const earnedCourts = unlockedCourtsForScore(game.score);
-
-        DINOS.forEach((dino, index) => {
-          const x = startX + index * (tile + gap);
-          const y = startY;
-          const earned = game.unlockedDinos.includes(dino.id);
-          drawStickerTile(x, y, tile, earned);
-          if (earned) drawDinoForDino(dino, x, y + tile * 0.34, tile * 0.36, "happy");
-          else drawEgg(x, y + tile * 0.04, tile * 0.45, dino, 0);
-        });
-
-        COURTS.forEach((court, index) => {
-          const x = startX + index * (tile + gap);
-          const y = startY + tile + gap;
-          const earned = earnedCourts.includes(court.id);
-          drawStickerTile(x, y, tile, earned);
+        game.stickerTargets = getStickerTiles(layout);
+        for (const tile of game.stickerTargets) {
+          const earned = !tile.locked;
+          const selected = (tile.type === "dino" && tile.dino.id === game.selectedDino) ||
+            (tile.type === "court" && tile.court.id === game.court);
+          drawStickerTile(tile.x, tile.y, tile.w, earned, selected);
           ctx.save();
-          ctx.globalAlpha = earned ? 1 : 0.32;
-          const oldCourt = game.court;
-          game.court = court.id;
-          drawCourtIcon(x, y, tile * 0.78);
-          game.court = oldCourt;
+          ctx.globalAlpha = earned ? 1 : 0.34;
+          if (tile.type === "dino") {
+            if (earned) drawDinoForDino(tile.dino, tile.x, tile.y + tile.h * 0.32, tile.w * 0.34, "happy");
+            else drawEgg(tile.x, tile.y + tile.h * 0.04, tile.w * 0.45, tile.dino, 0);
+          } else {
+            const oldCourt = game.court;
+            game.court = tile.court.id;
+            drawCourtIcon(tile.x, tile.y, tile.w * 0.78);
+            game.court = oldCourt;
+          }
           ctx.restore();
-        });
+        }
       }
 
-      function drawStickerTile(x, y, size, earned) {
+      function drawStickerTile(x, y, size, earned, selected = false) {
         const left = x - size * 0.5;
         const top = y - size * 0.5;
         fillRoundedRect(left, top, size, size, 16, earned ? "rgba(255, 255, 255, 0.88)" : "rgba(255, 255, 255, 0.55)");
-        ctx.strokeStyle = earned ? "#facc15" : "rgba(15, 23, 42, 0.18)";
-        ctx.lineWidth = earned ? 4 : 3;
+        ctx.strokeStyle = selected ? "#f97316" : earned ? "#facc15" : "rgba(15, 23, 42, 0.18)";
+        ctx.lineWidth = selected ? 5 : earned ? 4 : 3;
         roundedRect(left, top, size, size, 16);
         ctx.stroke();
         if (!earned) {
@@ -2223,9 +2960,14 @@
             return true;
           }
 
-          if (target.type === "court") {
-            cycleCourt();
-            playTap();
+          if (target.type === "power") {
+            if (game.powerCharge > 0) {
+              launchShot({ power: true });
+            } else {
+              game.powerBounce = CONFIG.POWER_BUTTON_BOUNCE_MS / 1000;
+              spawnParticles(target.x, target.y, 8, getCurrentDino().particles, "star");
+              playTap();
+            }
             return true;
           }
         }
@@ -2268,6 +3010,47 @@
           game.state = STATE.PLAY;
           playTap();
           resetReadyBall();
+        }
+      }
+
+      function handleStickerBookTap(point) {
+        const layout = getLayout();
+        const back = getBackButton(layout);
+        if (hitCircle(point, back, 10)) {
+          game.state = STATE.PLAY;
+          playTap();
+          resetReadyBall();
+          return;
+        }
+
+        for (const tile of getStickerTiles(layout)) {
+          if (!hitRect(point, tile)) continue;
+          if (tile.locked) {
+            game.pickerBounce = 0.3;
+            playMiss();
+            return;
+          }
+          if (tile.type === "court") {
+            game.court = tile.court.id;
+            game.courtFlash = CONFIG.COURT_FLASH_SECONDS * 0.8;
+            game.state = STATE.PLAY;
+            const juice = getCourtJuice(game.court);
+            spawnParticles(width * 0.5, height * 0.32, Math.floor(CONFIG.PARTICLE_COUNT * 0.45), juice.palette, juice.shape);
+            saveGame();
+            playTap();
+            resetReadyBall();
+            return;
+          }
+          if (tile.type === "dino") {
+            game.selectedDino = tile.dino.id;
+            game.state = STATE.PLAY;
+            game.dinoReact = 0.46;
+            game.dinoMood = "happy";
+            saveGame();
+            playTap();
+            resetReadyBall();
+            return;
+          }
         }
       }
 
@@ -2320,21 +3103,55 @@
           playTap();
           return;
         }
-        restartRound();
-        game.state = STATE.START;
+        game.finaleSeen = true;
+        game.pendingEnd = false;
+        game.end = null;
+        game.state = STATE.PLAY;
+        game.dinoReact = 0.58;
+        game.dinoMood = "happy";
+        saveGame();
+        resetReadyBall();
         playTap();
+      }
+
+      function canUseResetHold() {
+        return game.state === STATE.END || (game.state === STATE.PLAY && game.score >= CONFIG.FINAL_SCORE && game.finaleSeen);
+      }
+
+      function handlePressStart(event) {
+        if (event) event.preventDefault();
+        if (!canUseResetHold()) return false;
+        const point = getTapPoint(event);
+        const target = getResetHoldTarget(getLayout());
+        if (!hitCircle(point, target, 10)) return false;
+        ensureAudio();
+        game.resetHold = { active: true, time: 0 };
+        suppressNextTapUntil = performance.now() + CONFIG.PARENT_HOLD_SECONDS * 1000 + 350;
+        playTap();
+        return true;
+      }
+
+      function handlePressEnd(event) {
+        if (game.resetHold && game.resetHold.active) {
+          if (event) event.preventDefault();
+          game.resetHold = null;
+          suppressNextTapUntil = performance.now() + 260;
+          return true;
+        }
+        return false;
       }
 
       function handleTap(event) {
         if (event) event.preventDefault();
         const point = getTapPoint(event);
         const now = performance.now();
+        if (now < suppressNextTapUntil) return;
         if (now - lastTapAt < 90) return;
         lastTapAt = now;
 
         ensureAudio();
         if (game.state === STATE.START) {
-          if (game.score >= CONFIG.FINAL_SCORE) {
+          if (game.score >= CONFIG.FINAL_SCORE && !game.finaleSeen) {
             startEndCelebration();
             return;
           }
@@ -2362,12 +3179,12 @@
         }
 
         if (game.state === STATE.STICKERS) {
-          handleBackOnlyTap(point);
+          handleStickerBookTap(point);
           return;
         }
 
         if (handlePlayControlTap(point)) return;
-        if (game.score >= CONFIG.FINAL_SCORE) {
+        if (game.score >= CONFIG.FINAL_SCORE && !game.finaleSeen) {
           startEndCelebration();
           return;
         }
@@ -2379,10 +3196,19 @@
       }
 
       canvas.addEventListener("touchend", handleTap, { passive: false });
+      canvas.addEventListener("touchstart", handlePressStart, { passive: false });
       canvas.addEventListener("pointerup", (event) => {
-        if (event.pointerType !== "touch") handleTap(event);
+        if (event.pointerType !== "touch") {
+          if (handlePressEnd(event)) return;
+          handleTap(event);
+        }
       }, { passive: false });
-      canvas.addEventListener("touchstart", preventGesture, { passive: false });
+      canvas.addEventListener("pointerdown", (event) => {
+        if (event.pointerType !== "touch") handlePressStart(event);
+      }, { passive: false });
+      canvas.addEventListener("touchend", (event) => {
+        handlePressEnd(event);
+      }, { passive: false });
       canvas.addEventListener("touchmove", preventGesture, { passive: false });
       canvas.addEventListener("contextmenu", preventGesture);
       document.addEventListener("gesturestart", preventGesture, { passive: false });

@@ -2,21 +2,23 @@
 
 A single-screen, no-fail dinosaur basketball toy for a mobile browser.
 
-This repository currently contains the Stage 2 progression build:
+This repository currently contains the 100-basket adventure build:
 
-- One sprite-backed starter dino, one hoop, one ball
+- Ten sprite-backed and fallback-supported dinos, one hoop, one ball
 - Tap anywhere to shoot
 - High auto-aim make rate with rare soft misses
 - Confetti, screen shake, squash and stretch, and Web Audio sounds
-- Score persistence with defensive `localStorage` loading
-- Four unlockable cosmetic dinos with a tap-gated hatch celebration
-- Four courts that unlock through play, with a tap-only court cycler
+- Score persistence with defensive versioned `localStorage` loading
+- Ten unlockable dinos with tap-gated hatch celebrations
+- Ten courts that unlock every 10 baskets through play
 - Tap-only dino picker with locked dinos shown as eggs
+- A large bottom-right dino power button that charges every 3 made baskets
 - Automatic special shots including rainbow, moon, bank, dunk, star, and bubble variants
-- Court-specific celebration particles for jungle, beach, volcano, and space
+- Court-specific celebration particles for jungle, beach, volcano, space, ice, desert, candy, city, moon, and rainbow
 - Session-only surprise moments such as crown, parade, hoop sparkles, and confetti rain
-- A tap-only sticker book derived from current score and unlocks, with no new save fields
-- A 50-basket finale that celebrates the round and lets the child tap to play again
+- A tap-only sticker book for choosing unlocked dinos and courts
+- A 100-basket finale that celebrates the adventure and lets the child keep playing
+- A small parent hold reset target after 100 baskets
 - Static GitHub Pages friendly files with no runtime network calls
 - Local image asset repository with manifest-driven Canvas rendering and procedural fallbacks
 
@@ -28,7 +30,7 @@ Open `index.html` in a browser. For phone testing, serve the folder with any sim
 
 Runtime art lives under `assets/images` and is registered by `assets/manifest.js`, which exposes `window.DINO_ASSETS` without using `fetch()`. Source generations and reusable prompts are kept under `assets/source`.
 
-The game still keeps procedural drawing fallbacks for the background, dino, hoop, ball, and score badge, so a missing image should not produce a blank canvas.
+The game still keeps procedural drawing fallbacks for the background, dino, hoop, ball, and score badge, so a missing image should not produce a blank canvas. The six expanded court backgrounds can be added later with `background.<court>.portrait` and `background.<court>.landscape` manifest keys.
 
 ## Deploy to GitHub Pages
 
@@ -36,8 +38,8 @@ Publish the repository root from the `main` branch. The game uses a single `inde
 
 ## Testing a fresh save
 
-The game intentionally saves progress in `localStorage` on the same URL. To test a fresh game after an update, open the Pages URL with `?reset=1` once. Reaching 50 baskets shows the finale; tapping again starts a fresh round.
+The game intentionally saves progress in `localStorage` on the same URL. To test a fresh game after an update, open the Pages URL with `?reset=1` once. Reaching 100 baskets shows the finale; tapping continues free play, and the small reset target can be held by a parent to clear progress.
 
-## Stage 2 playtest gate
+## Playtest gate
 
-Before Stage 3 polish, test this on the target phone. Score should persist across reloads, unlocks should feel delightful, the picker should be easy to exit, and the court/dino controls should not get in the way of tap-to-shoot play.
+Test this on the target phone. Score should persist across reloads, powers should charge and fire without confusing normal taps, unlocks should feel delightful, and the picker or sticker book should be easy to exit.
